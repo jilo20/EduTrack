@@ -1,9 +1,16 @@
 import React from 'react';
 import { Box, Container, Paper, Typography, Stack, TextField, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import bg from '../assets/bglogin.png';
 import loginhero from '../assets/loginhero.png';
 
 const Login = () => {
+  const navigate = useNavigate();
+
+  const handleSignIn = () => {
+    navigate('/dashboard');
+  };
+
   return (
     <Box
       width={'100vw'}
@@ -64,6 +71,7 @@ const Login = () => {
               variant="contained"
               size="large"
               fullWidth
+              onClick={handleSignIn}
               sx={{
                 py: 1.5,
                 fontWeight: 'bold',
