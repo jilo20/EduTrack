@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useState } from "react";
 
 export default function StudentDashboard() {
@@ -270,3 +271,17 @@ const reportCard = {
   textAlign: "center",
   cursor: "pointer",
 };
+=======
+import React from 'react';
+import { Typography, Box } from '@mui/material';
+
+const StudentDashboard = () => {
+    return (
+        <Box>
+            <Typography variant="h5">Welcome to your Dashboard Jilo!</Typography>
+        </Box>
+    );
+};
+
+export default StudentDashboard;
+>>>>>>> a531a76ee5770ed6feb1cd3bb3d52089790b7cb3
