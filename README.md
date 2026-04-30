@@ -24,32 +24,55 @@ npm install
 
 ### 2. Set up the Django backend
 ```bash
+# Navigate to backend
 cd backend
+
+# Create and activate virtual environment
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+source venv/bin/activate        # On Windows: venv\Scripts\activate
+
+# Install requirements
 pip install -r requirements.txt
+
+# Setup database and default admin
 python manage.py migrate
-python manage.py import_data    # imports seed data from server/database.json
+python create_admin.py
 ```
 
 ### 3. Run both servers
+Open two terminal windows/tabs:
+
+**Terminal 1 (Backend):**
+```bash
+cd backend
+source venv/bin/activate
+python manage.py runserver
+```
+
+**Terminal 2 (Frontend):**
 ```bash
 npm run dev
 ```
-This starts:
-- **Vite** (React) on `http://localhost:5173`
-- **Django** on `http://localhost:8000`
 
-The Vite dev server proxies `/api/*` requests to Django automatically.
+The system will be accessible at:
+- **Frontend**: `http://localhost:5173`
+- **Backend API**: `http://localhost:8000`
 
-### Default Accounts (after import_data)
+---
 
-| Role    | Email               | Password                   |
-|---------|---------------------|----------------------------|
-| Admin   | admin@edutrack.com  | *(SHA-256 hashed in DB)*   |
-| Teacher | carmel@usjr.com     | *(SHA-256 hashed in DB)*   |
+## 🔑 Default Accounts & Testing
 
-> **Note:** Imported passwords use the legacy Express hash format. For new accounts, use the registration flow which uses Django's PBKDF2 hasher.
+After running `python create_admin.py`, you can use these to test:
+
+| Role | Email | Password |
+|------|-------|----------|
+| **Admin** | `admin@edutrack.com` | `admin` |
+
+### 🎟️ Sample Invitation IDs
+To test the **Registration** flow, use these pre-generated IDs:
+- **Teacher Invites**: `T-2026-001`, `T-2026-002`
+- **Student Invites**: `S-2026-001`, `S-2026-002`, `S-2026-003`
+
 
 ## Project Structure
 
