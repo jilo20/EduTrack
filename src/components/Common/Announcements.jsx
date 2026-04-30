@@ -11,49 +11,123 @@ import CircleIcon from '@mui/icons-material/Circle';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 
 const Announcements = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const [user, setUser] = useState(null);
     const [announcements, setAnnouncements] = useState([]);
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState(0);
 
     useEffect(() => {
+        try {
+            const stored = localStorage.getItem('user');
+            if (stored) setUser(JSON.parse(stored));
+            else setLoading(false);
+        } catch (e) {
+            console.error('Failed to parse user', e);
+            setLoading(false);
+        }
+    }, []);
+
+
+    useEffect(() => {
+        if (!user?.id) return;
         const fetchData = async () => {
+            const token = localStorage.getItem('token');
             try {
                 const [announcementsRes, notificationsRes] = await Promise.all([
-                    fetch('/api/announcements'),
-                    fetch(`/api/notifications/user/${user.id}`)
+                    fetch('/api/announcements', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(`/api/notifications/user/${user.id}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
                 ]);
-                const announcementsData = await announcementsRes.json();
-                const notificationsData = await notificationsRes.json();
-                setAnnouncements(Array.isArray(announcementsData) ? announcementsData : []);
+
+                
+                let announcementsData = [];
+                let notificationsData = [];
+                
+                if (announcementsRes.ok) announcementsData = await announcementsRes.json();
+                if (notificationsRes.ok) notificationsData = await notificationsRes.json();
+                
+                // Fetch student analytics to get section_ids if user is a student
+                let sectionIds = [];
+                if (user.role === 'Student') {
+                    const analyticsRes = await fetch(`/api/analytics/student/${user.id}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (analyticsRes.ok) {
+                        const analyticsData = await analyticsRes.json();
+                        sectionIds = analyticsData.section_ids || [];
+                    }
+                }
+                
+                // Filter announcements based on role and section
+                const filteredAnnouncements = (announcementsData || []).filter(a => {
+                    if (!user || user.role === 'Admin') return true;
+                    
+                    const target = a.target || 'all';
+                    const isTargetMatch = target === 'all' || 
+                                        (user.role === 'Teacher' && target === 'teachers') || 
+                                        (user.role === 'Student' && target === 'students');
+                    
+                    if (!isTargetMatch) return false;
+
+                    // Section filter
+                    if (a.section_id) {
+                        if (user.role === 'Student') {
+                            return sectionIds.includes(a.section_id);
+                        }
+                        if (user.role === 'Teacher') {
+                            return true; 
+                        }
+                    }
+
+                    return true;
+                });
+
+                setAnnouncements(filteredAnnouncements);
                 setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
             } catch (err) { console.error('Failed to fetch announcements/notifications', err); }
             finally { setLoading(false); }
         };
         fetchData();
-    }, [user.id]);
+    }, [user?.id]);
+
 
     const handleMarkRead = async (id) => {
+        const token = localStorage.getItem('token');
         try {
-            await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+            await fetch(`/api/notifications/${id}/read`, { 
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'read' } : n));
         } catch (err) { console.error('Failed to mark as read'); }
     };
 
     const handleMarkAllRead = async () => {
+        const token = localStorage.getItem('token');
         try {
-            await fetch(`/api/notifications/mark-all-read/${user.id}`, { method: 'POST' });
+            await fetch(`/api/notifications/mark-all-read/${user.id}`, { 
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             setNotifications(prev => prev.map(n => ({ ...n, status: 'read' })));
         } catch (err) { console.error('Failed to mark all as read'); }
     };
 
     const handleClearAll = async () => {
+        const token = localStorage.getItem('token');
         try {
-            await fetch(`/api/notifications/clear-all/${user.id}`, { method: 'POST' });
+            await fetch(`/api/notifications/clear-all/${user.id}`, { 
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             setNotifications([]);
         } catch (err) { console.error('Failed to clear all'); }
     };
+
 
     const unreadCount = notifications.filter(n => n.status === 'unread').length;
 

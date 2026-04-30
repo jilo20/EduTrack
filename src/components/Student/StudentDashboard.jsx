@@ -17,20 +17,27 @@ import StarIcon from '@mui/icons-material/Star';
 import AnnouncementCard from '../Common/AnnouncementCard';
 
 const StudentDashboard = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const user = (() => {
+        try {
+            return JSON.parse(localStorage.getItem('user'));
+        } catch (e) { return null; }
+    })();
     const navigate = useNavigate();
     const [analytics, setAnalytics] = useState(null);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
+            const token = localStorage.getItem('token');
             try {
-                const res = await fetch(`/api/analytics/student/${user.id}`);
+                const res = await fetch(`/api/analytics/student/${user.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
                 const data = await res.json();
                 setAnalytics(data);
             } catch (err) { console.error('Student analytics fetch failed', err); }
         };
         fetchDashboardData();
-    }, [user.id]);
+    }, [user?.id]);
 
     const [openHistory, setOpenHistory] = useState(false);
 
@@ -60,11 +67,12 @@ const StudentDashboard = () => {
                                 <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: `${gradeColor}10`, color: gradeColor }}><TrendingUpIcon /></Box>
                                 <Typography variant="h6" fontWeight={700}>General Weighted Average</Typography>
                             </Stack>
-                            <Typography variant="h2" fontWeight={800} sx={{ color: gradeColor }}>{analytics.gwa}%</Typography>
+                            <Typography variant="h2" fontWeight={800} sx={{ color: gradeColor }}>{analytics?.gwa || 0}%</Typography>
                             <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-                                <Typography variant="h5" fontWeight={700}>{analytics.equivalentGrade}</Typography>
-                                <Typography variant="caption" color="text.secondary" fontWeight={600}>({analytics.gwa >= 75 ? 'PASSING' : 'FAILING'})</Typography>
+                                <Typography variant="h5" fontWeight={700}>{analytics?.equivalentGrade || 'N/A'}</Typography>
+                                <Typography variant="caption" color="text.secondary" fontWeight={600}>({(analytics?.gwa || 0) >= 75 ? 'PASSING' : 'FAILING'})</Typography>
                             </Stack>
+
                         </CardContent>
                     </Card>
                 </Grid>
@@ -76,17 +84,18 @@ const StudentDashboard = () => {
                                 <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#16A34A10', color: '#16A34A' }}><EventAvailableIcon /></Box>
                                 <Typography variant="h6" fontWeight={700}>Attendance Rate</Typography>
                             </Stack>
-                            <Typography variant="h2" fontWeight={800} color="#16A34A">{analytics.attendanceStats.percentage}%</Typography>
+                            <Typography variant="h2" fontWeight={800} color="#16A34A">{analytics?.attendanceStats?.percentage || 0}%</Typography>
                             <Box sx={{ mt: 2 }}>
                                 <LinearProgress
                                     variant="determinate"
-                                    value={analytics.attendanceStats.percentage}
+                                    value={analytics?.attendanceStats?.percentage || 0}
                                     sx={{ height: 10, borderRadius: 5, bgcolor: '#16A34A20', '& .MuiLinearProgress-bar': { bgcolor: '#16A34A' } }}
                                 />
                                 <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                                    {analytics.attendanceStats.presentCount} days present / {analytics.attendanceStats.total} total
+                                    {analytics?.attendanceStats?.presentCount || 0} days present / {analytics?.attendanceStats?.total || 0} total
                                 </Typography>
                             </Box>
+
                         </CardContent>
                     </Card>
                 </Grid>
@@ -98,7 +107,7 @@ const StudentDashboard = () => {
                                 <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#7C3AED10', color: '#7C3AED' }}><AssignmentIcon /></Box>
                                 <Typography variant="h6" fontWeight={700}>Latest Achievement</Typography>
                             </Stack>
-                            {analytics.recentGrades[0] ? (
+                            {analytics?.recentGrades?.[0] ? (
                                 <Box>
                                     <Typography variant="h4" fontWeight={800} color="#7C3AED">{analytics.recentGrades[0].score}%</Typography>
                                     <Typography variant="body2" fontWeight={700} sx={{ mt: 0.5 }}>{analytics.recentGrades[0].title}</Typography>
@@ -107,6 +116,7 @@ const StudentDashboard = () => {
                             ) : (
                                 <Typography variant="body2" color="text.secondary">No assessments graded yet.</Typography>
                             )}
+
                         </CardContent>
                     </Card>
                 </Grid>

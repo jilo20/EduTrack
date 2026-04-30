@@ -10,30 +10,53 @@ import CalculateIcon from '@mui/icons-material/Calculate';
 import SearchIcon from '@mui/icons-material/Search';
 
 const AcademicPerformance = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const [user, setUser] = useState(null);
     const [performance, setPerformance] = useState([]);
     const [gwaData, setGwaData] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterClass, setFilterClass] = useState('all');
 
     useEffect(() => {
-        const fetchPerformance = async () => {
-            try {
-                const res = await fetch(`/api/student/${user.id}/performance`);
+        try {
+            const stored = localStorage.getItem('user');
+            if (stored) setUser(JSON.parse(stored));
+        } catch (e) { console.error('Failed to parse user', e); }
+    }, []);
+
+    const fetchPerformance = async () => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`/api/student/${user?.id}/performance`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
                 const data = await res.json();
                 if (Array.isArray(data)) setPerformance(data);
-            } catch (err) { console.error('Performance fetch failed'); }
-        };
-        const fetchGWA = async () => {
-            try {
-                const res = await fetch(`/api/student/${user.id}/gwa`);
+            }
+        } catch (err) { console.error('Performance fetch failed', err); }
+    };
+
+    const fetchGWA = async () => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`/api/student/${user?.id}/gwa`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
                 const data = await res.json();
                 setGwaData(data);
-            } catch (err) { console.error('GWA fetch failed'); }
-        };
-        fetchPerformance();
-        fetchGWA();
-    }, [user.id]);
+            }
+        } catch (err) { console.error('GWA fetch failed', err); }
+    };
+
+
+    useEffect(() => {
+        if (user?.id) {
+            fetchPerformance();
+            fetchGWA();
+        }
+    }, [user?.id]);
+
     const gradeColor = (gwaData?.gwa || 0) >= 85 ? '#16A34A' : (gwaData?.gwa || 0) >= 75 ? '#2563EB' : '#DC2626';
 
     const filteredSections = (gwaData?.sectionGrades || []).filter(s => 

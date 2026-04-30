@@ -13,44 +13,63 @@ import {
     ResponsiveContainer, Cell, PieChart, Pie, Legend,
     RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import WarningIcon from '@mui/icons-material/Warning';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import EventNoteIcon from '@mui/icons-material/EventNote';
 import AnnouncementCard from '../Common/AnnouncementCard';
 
 const TeacherDashboard = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const user = (() => {
+        try {
+            return JSON.parse(localStorage.getItem('user'));
+        } catch (e) { return null; }
+    })();
     const [analytics, setAnalytics] = useState(null);
     const [performanceData, setPerformanceData] = useState([]);
     const [assessmentStats, setAssessmentStats] = useState([]);
     const [atRiskStudents, setAtRiskStudents] = useState([]);
     const [categoryData, setCategoryData] = useState([]);
-    const [selectedHonorRollSection, setSelectedHonorRollSection] = useState('all');
+    const [attendanceStats, setAttendanceStats] = useState({ percentage: 0, present: 0, absent: 0, late: 0 });
+    const navigate = useNavigate();
 
     // Dialog states
     const [openHonorRoll, setOpenHonorRoll] = useState(false);
     const [openGradingProgress, setOpenGradingProgress] = useState(false);
     const [openAtRisk, setOpenAtRisk] = useState(false);
+    const [selectedHonorRollSection, setSelectedHonorRollSection] = useState('all');
 
     useEffect(() => {
         if (!user) return;
         const fetchDashboardData = async () => {
+            const token = localStorage.getItem('token');
             try {
                 // Legacy analytics for existing stats cards
-                const res1 = await fetch(`/api/teacher/${user.id}/analytics`);
-                const data1 = await res1.json();
-                setAnalytics(data1);
-
+                const res1 = await fetch(`/api/teacher/${user.id}/analytics`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res1.ok) {
+                    const data1 = await res1.json();
+                    setAnalytics(data1);
+                }
+                
                 // New rich analytics
-                const res2 = await fetch(`/api/analytics/teacher/${user.id}`);
-                const data2 = await res2.json();
-                setPerformanceData((data2.classPerformance || []).map(p => ({ ...p, full: 100 })));
-                setAssessmentStats(data2.assessmentStats);
-                setAtRiskStudents(data2.atRisk);
-                setCategoryData(data2.categoryPerformance);
+                const res2 = await fetch(`/api/analytics/teacher/${user.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res2.ok) {
+                    const data2 = await res2.json();
+                    setPerformanceData((data2.classPerformance || []).map(p => ({ ...p, full: 100 })));
+                    setAssessmentStats(data2.assessmentStats || []);
+                    setAtRiskStudents(data2.atRisk || []);
+                    setCategoryData(data2.categoryPerformance || []);
+                    if (data2.attendance) setAttendanceStats(data2.attendance);
+                }
             } catch (err) { console.error('Dashboard data fetch failed', err); }
         };
         fetchDashboardData();
@@ -59,22 +78,34 @@ const TeacherDashboard = () => {
     if (!user || !analytics) return <LinearProgress />;
 
     const stats = [
-        { label: 'Total Students', value: analytics.totalStudents, icon: <PeopleIcon />, color: '#2563EB' },
-        { label: 'Active Classes', value: analytics.totalClasses, icon: <SchoolIcon />, color: '#7C3AED' },
-        { label: 'Avg. Performance', value: `${analytics.averagePerformance}%`, icon: <TrendingUpIcon />, color: '#059669' },
+        { label: 'Total Students', value: analytics?.totalStudents || 0, icon: <PeopleIcon />, color: '#2563EB' },
+        { label: 'Active Classes', value: analytics?.totalClasses || 0, icon: <SchoolIcon />, color: '#7C3AED' },
+        { label: 'Avg. Performance', value: `${analytics?.averagePerformance || 0}%`, icon: <TrendingUpIcon />, color: '#059669' },
+        { label: 'Attendance Rate', value: `${attendanceStats?.percentage || 0}%`, icon: <CheckCircleIcon />, color: '#F59E0B' },
     ];
+
 
     const COLORS = ['#2563EB', '#7C3AED', '#059669', '#F59E0B', '#EF4444'];
 
     return (
         <Box sx={{ p: 4, bgcolor: '#f8fafc', minHeight: '100vh' }}>
-            <Box sx={{ mb: 4 }}>
-                <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-1px' }}>
-                    Instructor Insights
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                    Real-time monitoring of classroom performance and student engagement.
-                </Typography>
+            <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <Box>
+                    <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-1px' }}>
+                        Instructor Insights
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        Real-time monitoring of classroom performance and student engagement.
+                    </Typography>
+                </Box>
+                <Button 
+                    variant="contained" 
+                    startIcon={<EventNoteIcon />} 
+                    onClick={() => navigate('/dashboard/attendance')}
+                    sx={{ fontWeight: 800, borderRadius: 3, px: 3, py: 1.2, boxShadow: '0 4px 14px 0 rgba(37, 99, 235, 0.39)' }}
+                >
+                    Manage Attendance
+                </Button>
             </Box>
 
             <AnnouncementCard />
@@ -82,7 +113,7 @@ const TeacherDashboard = () => {
             <Grid container spacing={3}>
                 {/* Top Stats */}
                 {stats.map((stat, idx) => (
-                    <Grid size={{ xs: 12, md: 4 }} key={idx}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }} key={idx}>
                         <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4 }}>
                             <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
                                 <Stack direction="row" spacing={2} alignItems="center">
@@ -98,7 +129,7 @@ const TeacherDashboard = () => {
                 ))}
 
                 {/* At-Risk Students Alert */}
-                {atRiskStudents.length > 0 && (
+                {(atRiskStudents || []).length > 0 && (
                     <Grid size={{ xs: 12 }}>
                         <Paper elevation={0} sx={{ p: 3, bgcolor: '#FEF2F2', border: '1px solid', borderColor: '#FCA5A5', borderRadius: 4, position: 'relative' }}>
                             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
@@ -112,27 +143,28 @@ const TeacherDashboard = () => {
                                     </Box>
                                 </Stack>
                                 <Button size="small" variant="contained" color="error" onClick={() => setOpenAtRisk(true)} sx={{ fontWeight: 800, borderRadius: 2 }}>
-                                    Manage All ({atRiskStudents.length})
+                                    Manage All ({(atRiskStudents || []).length})
                                 </Button>
                             </Stack>
 
                             <Stack direction="row" spacing={2} sx={{ overflowX: 'auto', pb: 1, '&::-webkit-scrollbar': { height: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: '#FCA5A5', borderRadius: 3 } }}>
-                                {atRiskStudents.map((s, idx) => (
+                                {(atRiskStudents || []).map((s, idx) => (
                                     <Card key={idx} elevation={0} sx={{ minWidth: 240, border: '1px solid', borderColor: '#FCA5A5', borderRadius: 3, bgcolor: '#fff' }}>
                                         <CardContent sx={{ p: 3, '&:last-child': { pb: 2 } }}>
                                             <Stack direction="row" spacing={2} alignItems="center">
-                                                <Avatar sx={{ bgcolor: '#FEE2E2', color: '#EF4444', fontWeight: 800 }}>{s.name[0]}</Avatar>
+                                                <Avatar sx={{ bgcolor: '#FEE2E2', color: '#EF4444', fontWeight: 800 }}>{s?.name?.[0] || 'S'}</Avatar>
                                                 <Box>
-                                                    <Typography variant="body2" fontWeight={800}>{s.name}</Typography>
-                                                    <Typography variant="caption" color="text.secondary" display="block">{s.section}</Typography>
+                                                    <Typography variant="body2" fontWeight={800}>{s?.name || 'Unknown'}</Typography>
+                                                    <Typography variant="caption" color="text.secondary" display="block">{s?.section || 'General Class'}</Typography>
                                                 </Box>
                                                 <Box sx={{ flexGrow: 1, textAlign: 'right' }}>
-                                                    <Typography variant="h6" fontWeight={900} color="#EF4444">{s.grade}%</Typography>
+                                                    <Typography variant="h6" fontWeight={900} color="#EF4444">{s?.grade || 0}%</Typography>
                                                 </Box>
                                             </Stack>
                                         </CardContent>
                                     </Card>
                                 ))}
+
                             </Stack>
                         </Paper>
                     </Grid>
@@ -142,8 +174,8 @@ const TeacherDashboard = () => {
                 <Grid size={{ xs: 12, md: 8 }}>
                     <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 5, height: 380, display: 'flex', flexDirection: 'column' }}>
                         <Box sx={{ mb: 2 }}>
-                            <Typography variant="h6" fontWeight={800}>Section Achievement</Typography>
-                            <Typography variant="caption" color="text.secondary" fontWeight={700}>Average cumulative grade per class section</Typography>
+                            <Typography variant="h6" fontWeight={800}>Class Achievement</Typography>
+                            <Typography variant="caption" color="text.secondary" fontWeight={700}>Average cumulative grade per class</Typography>
                         </Box>
                         <Box sx={{ flexGrow: 1, mt: 2 }}>
                             <ResponsiveContainer width="100%" height="100%">
@@ -273,7 +305,7 @@ const TeacherDashboard = () => {
                                     onChange={(e) => setSelectedHonorRollSection(e.target.value)}
                                     sx={{ borderRadius: 2, fontWeight: 700, fontSize: '0.75rem', height: 32 }}
                                 >
-                                    <MenuItem value="all" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>All Sections</MenuItem>
+                                    <MenuItem value="all" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>All Classes</MenuItem>
                                     {(analytics.sections || []).map(s => (
                                         <MenuItem key={s.id} value={s.id} sx={{ fontWeight: 700, fontSize: '0.75rem' }}>{s.name}</MenuItem>
                                     ))}
@@ -281,7 +313,7 @@ const TeacherDashboard = () => {
                             </FormControl>
                         </Stack>
                         <List sx={{ px: 0, flexGrow: 1, maxHeight: 220, overflow: 'hidden' }}>
-                            {analytics.topStudents
+                            {(analytics.topStudents || [])
                                 .filter(s => selectedHonorRollSection === 'all' || s.section_id === selectedHonorRollSection)
                                 .slice(0, 3)
                                 .map((student, idx) => (
@@ -313,11 +345,11 @@ const TeacherDashboard = () => {
                 </DialogTitle>
                 <DialogContent dividers>
                     <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2} px={1}>
-                        <Typography variant="body2" color="text.secondary" fontWeight={700}>Filtering: {selectedHonorRollSection === 'all' ? 'All Sections' : analytics.sections.find(s => s.id === selectedHonorRollSection)?.name}</Typography>
+                        <Typography variant="body2" color="text.secondary" fontWeight={700}>Filtering: {selectedHonorRollSection === 'all' ? 'All Classes' : (analytics.sections || []).find(s => s.id === selectedHonorRollSection)?.name}</Typography>
                         <EmojiEventsIcon sx={{ color: '#FBBF24' }} />
                     </Stack>
                     <List>
-                        {analytics.topStudents
+                        {(analytics.topStudents || [])
                             .filter(s => selectedHonorRollSection === 'all' || s.section_id === selectedHonorRollSection)
                             .map((student, idx) => (
                                 <ListItem key={idx} sx={{ py: 2 }}>
@@ -386,14 +418,15 @@ const TeacherDashboard = () => {
                 </DialogTitle>
                 <DialogContent dividers>
                     <List>
-                        {atRiskStudents.map((s, idx) => (
+                        {(atRiskStudents || []).map((s, idx) => (
                             <ListItem key={idx} sx={{ py: 2 }}>
                                 <ListItemAvatar>
-                                    <Avatar sx={{ bgcolor: '#fee2e2', color: '#DC2626' }}>{s.name[0]}</Avatar>
+                                    <Avatar sx={{ bgcolor: '#fee2e2', color: '#DC2626' }}>{s?.name?.[0] || 'S'}</Avatar>
+
                                 </ListItemAvatar>
                                 <ListItemText
                                     primary={<Typography fontWeight={800}>{s.name}</Typography>}
-                                    secondary={`Enrolled in ${s.section}`}
+                                    secondary={`Enrolled in ${s.section || 'Class'}`}
                                 />
                                 <Box sx={{ textAlign: 'right' }}>
                                     <Typography variant="h6" fontWeight={900} color="error">{s.grade}%</Typography>

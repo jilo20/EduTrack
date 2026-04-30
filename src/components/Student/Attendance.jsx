@@ -8,21 +8,40 @@ import WarningIcon from '@mui/icons-material/Warning';
 import CancelIcon from '@mui/icons-material/Cancel';
 
 const Attendance = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const [user, setUser] = useState(null);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        try {
+            const stored = localStorage.getItem('user');
+            if (stored) setUser(JSON.parse(stored));
+            else setLoading(false);
+        } catch (e) { 
+            console.error('Failed to parse user', e); 
+            setLoading(false);
+        }
+    }, []);
+
+
+    useEffect(() => {
+        if (!user?.id) return;
         const fetchAttendance = async () => {
+            const token = localStorage.getItem('token');
             try {
-                const res = await fetch(`/api/student/${user.id}/attendance`);
-                const result = await res.json();
-                setData(result);
-            } catch (err) { console.error('Attendance fetch failed'); }
+                const res = await fetch(`/api/student/${user.id}/attendance`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const result = await res.json();
+                    setData(result);
+                }
+            } catch (err) { console.error('Attendance fetch failed', err); }
             finally { setLoading(false); }
         };
         fetchAttendance();
-    }, [user.id]);
+    }, [user?.id]);
+
 
     if (loading) {
         return (
@@ -103,26 +122,27 @@ const Attendance = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {records.map((row, i) => (
+                                {(data?.records || []).map((row, i) => (
                                     <TableRow key={i} sx={{ '&:hover': { bgcolor: '#f8fafc' } }}>
                                         <TableCell sx={{ fontWeight: 600 }}>
-                                            {new Date(row.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                                            {row?.date ? new Date(row.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
                                         </TableCell>
                                         <TableCell>
-                                            <Chip label={row.status} size="small"
-                                                color={row.status === 'Present' ? 'success' : row.status === 'Late' ? 'warning' : 'error'}
+                                            <Chip label={row?.status || 'Unknown'} size="small"
+                                                color={row?.status === 'Present' ? 'success' : row?.status === 'Late' ? 'warning' : 'error'}
                                                 sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
                                         </TableCell>
-                                        <TableCell sx={{ color: 'text.secondary', fontStyle: row.remarks ? 'normal' : 'italic' }}>
-                                            {row.remarks || 'Standard presence recorded'}
+                                        <TableCell sx={{ color: 'text.secondary', fontStyle: row?.remarks ? 'normal' : 'italic' }}>
+                                            {row?.remarks || 'Standard presence recorded'}
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                {records.length === 0 && (
+                                {(!data?.records || data.records.length === 0) && (
                                     <TableRow><TableCell colSpan={3} align="center" sx={{ py: 6 }}>
                                         <Typography color="text.secondary">No attendance records found.</Typography>
                                     </TableCell></TableRow>
                                 )}
+
                             </TableBody>
                         </Table>
                     </TableContainer>

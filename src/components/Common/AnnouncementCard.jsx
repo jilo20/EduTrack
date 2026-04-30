@@ -4,33 +4,76 @@ import { useNavigate } from 'react-router-dom';
 import CampaignIcon from '@mui/icons-material/Campaign';
 
 const AnnouncementCard = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const [user, setUser] = useState(null);
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
+        try {
+            const stored = localStorage.getItem('user');
+            if (stored) setUser(JSON.parse(stored));
+        } catch (e) { console.error('Failed to parse user', e); }
+    }, []);
+
+
+    useEffect(() => {
         const fetchAnnouncements = async () => {
+            const token = localStorage.getItem('token');
+            if (!user) return;
+
             try {
-                const res = await fetch('/api/announcements');
-                const data = await res.json();
-                
-                // Filter based on role
-                const filtered = (data || []).filter(a => {
-                    if (!user || user.role === 'Admin') return true;
-                    const target = a.target || 'all'; // Default to 'all' for old data
-                    if (target === 'all') return true;
-                    if (user.role === 'Teacher' && target === 'teachers') return true;
-                    if (user.role === 'Student' && target === 'students') return true;
-                    return false;
+                // Fetch student analytics to get section_ids if user is a student
+                let sectionIds = [];
+                if (user.role === 'Student') {
+                    const analyticsRes = await fetch(`/api/analytics/student/${user.id}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (analyticsRes.ok) {
+                        const analyticsData = await analyticsRes.json();
+                        sectionIds = analyticsData.section_ids || [];
+                    }
+                }
+
+                const res = await fetch('/api/announcements', {
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
 
-                setAnnouncements(filtered);
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    const filtered = (data || []).filter(a => {
+                        if (user.role === 'Admin') return true;
+                        
+                        const target = a.target || 'all';
+                        const isTargetMatch = target === 'all' || 
+                                            (user.role === 'Teacher' && target === 'teachers') || 
+                                            (user.role === 'Student' && target === 'students');
+                        
+                        if (!isTargetMatch) return false;
+
+                        // Section filter
+                        if (a.section_id) {
+                            if (user.role === 'Student') {
+                                return sectionIds.includes(a.section_id);
+                            }
+                            if (user.role === 'Teacher') {
+                                // For now, teachers see all announcements they or others made for classes
+                                // but we could refine this to only see their own sections.
+                                return true; 
+                            }
+                        }
+
+                        return true;
+                    });
+
+                    setAnnouncements(filtered);
+                }
             } catch (err) { console.error('Failed to fetch announcements', err); }
             finally { setLoading(false); }
         };
         fetchAnnouncements();
-    }, [user?.role]);
+    }, [user?.role, user?.id]);
 
     if (loading) return <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 4, mb: 3 }} />;
 

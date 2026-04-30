@@ -13,11 +13,16 @@ const AuditLogs = () => {
 
     useEffect(() => {
         const fetchLogs = async () => {
+            const token = localStorage.getItem('token');
             try {
-                const res = await fetch('/api/audit-logs');
-                const data = await res.json();
-                setLogs(data);
-            } catch (err) { console.error('Audit logs fetch failed'); }
+                const res = await fetch('/api/audit-logs', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setLogs(Array.isArray(data) ? data : []);
+                }
+            } catch (err) { console.error('Audit logs fetch failed', err); }
         };
         fetchLogs();
     }, []);
@@ -31,15 +36,17 @@ const AuditLogs = () => {
         ATTENDANCE_MARKED: { bg: '#e0f2fe', color: '#0c4a6e' }
     };
 
-    const actionTypes = ['All', ...new Set(logs.map(l => l.action))];
+    const actionTypes = ['All', ...new Set((logs || []).map(l => l.action))];
 
-    const filteredLogs = logs.filter(log => {
-        const matchesSearch = (log.actor_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (log.details || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (log.target_user_name || '').toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesFilter = filterAction === 'All' || log.action === filterAction;
+
+    const filteredLogs = (logs || []).filter(log => {
+        const matchesSearch = (log?.actor_name || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+            (log?.details || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+            (log?.target_user_name || '').toLowerCase().includes((searchQuery || '').toLowerCase());
+        const matchesFilter = filterAction === 'All' || log?.action === filterAction;
         return matchesSearch && matchesFilter;
     });
+
 
     return (
         <Box sx={{ p: 4 }}>
@@ -69,10 +76,10 @@ const AuditLogs = () => {
                     />
                 </Paper>
                 <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                    {actionTypes.map(action => (
+                    {(actionTypes || []).map(action => (
                         <Chip
                             key={action}
-                            label={action.replace(/_/g, ' ')}
+                            label={(action || '').replace(/_/g, ' ')}
                             onClick={() => setFilterAction(action)}
                             variant={filterAction === action ? 'filled' : 'outlined'}
                             color={filterAction === action ? 'primary' : 'default'}
@@ -94,10 +101,11 @@ const AuditLogs = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {filteredLogs.map((log) => {
-                            const colors = actionColors[log.action] || { bg: '#f1f5f9', color: '#475569' };
+                        {(filteredLogs || []).map((log) => {
+                            if (!log) return null;
+                            const colors = (log.action && actionColors[log.action]) || { bg: '#f1f5f9', color: '#475569' };
                             return (
-                                <TableRow key={log.id} hover>
+                                <TableRow key={log.id || Math.random()} hover>
                                     <TableCell sx={{ fontWeight: 500, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                                         {new Date(log.timestamp).toLocaleString()}
                                     </TableCell>

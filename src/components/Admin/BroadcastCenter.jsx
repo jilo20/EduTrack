@@ -11,17 +11,30 @@ const BroadcastCenter = () => {
     const [isBroadcasting, setIsBroadcasting] = useState(false);
     const [allAnnouncements, setAllAnnouncements] = useState([]);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const user = (() => {
+        try {
+            return JSON.parse(localStorage.getItem('user'));
+        } catch (e) { return null; }
+    })();
+
 
     useEffect(() => {
         fetchAnnouncements();
     }, []);
 
     const fetchAnnouncements = async () => {
+        const token = localStorage.getItem('token');
         try {
-            const res = await fetch('/api/announcements');
-            const data = await res.json();
-            setAllAnnouncements(data);
-        } catch (err) { console.error('Announcements fetch failed'); }
+            const res = await fetch('/api/announcements', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setAllAnnouncements(Array.isArray(data) ? data : []);
+            }
+        } catch (err) { console.error('Announcements fetch failed', err); }
+
     };
 
     const handleBroadcastSubmit = async () => {
@@ -31,12 +44,17 @@ const BroadcastCenter = () => {
         }
 
         setIsBroadcasting(true);
+        const token = localStorage.getItem('token');
         try {
-            const res = await fetch('/api/announcements', {
+            const res = await fetch('/api/announcements/create', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...broadcastData, userId: 1 })
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ ...broadcastData, userId: user?.id || 1 })
             });
+
             if (res.ok) {
                 setSnackbar({ open: true, message: 'Announcement broadcasted successfully!', severity: 'success' });
                 setBroadcastData({ title: '', content: '', priority: 'normal', target: 'all' });
@@ -124,7 +142,8 @@ const BroadcastCenter = () => {
                             <Typography variant="h6" fontWeight={800}>Broadcast History</Typography>
                         </Box>
                         <List>
-                            {allAnnouncements.map((a, idx) => (
+                            {(allAnnouncements || []).map((a, idx) => (
+
                                 <React.Fragment key={a.id}>
                                     <ListItem sx={{ py: 2.5, px: 3 }}>
                                         <ListItemText

@@ -31,7 +31,12 @@ const DashboardLayout = () => {
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
-            setUser(JSON.parse(storedUser));
+            try {
+                setUser(JSON.parse(storedUser));
+            } catch (e) {
+                localStorage.clear();
+                navigate('/', { replace: true });
+            }
         } else {
             navigate('/', { replace: true });
         }
@@ -53,8 +58,11 @@ const DashboardLayout = () => {
 
     const fetchNotifData = async () => {
         if (!user) return;
+        const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`/api/notifications/user/${user.id}`);
+            const res = await fetch(`/api/notifications/user/${user.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             const data = await res.json();
             if (Array.isArray(data)) {
                 setNotifications(data.slice(0, 5));
@@ -64,11 +72,16 @@ const DashboardLayout = () => {
     };
 
     const handleMarkRead = async (id) => {
+        const token = localStorage.getItem('token');
         try {
-            await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+            await fetch(`/api/notifications/${id}/read`, { 
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             fetchNotifData();
         } catch (err) { /* silently fail */ }
     };
+
 
     useEffect(() => {
         if (!user) return;
@@ -79,9 +92,9 @@ const DashboardLayout = () => {
 
     const adminMenu = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+        { text: 'User Management', icon: <PeopleIcon />, path: '/dashboard/users' },
         { text: 'Broadcast Center', icon: <CampaignIcon />, path: '/dashboard/broadcast' },
-        { text: 'Manage Teachers', icon: <SchoolIcon />, path: '/dashboard/teachers' },
-        { text: 'Manage Students', icon: <PeopleIcon />, path: '/dashboard/students' },
+        { text: 'Announcements', icon: <CampaignIcon />, path: '/dashboard/announcements' },
         { text: 'Audit Logs', icon: <HistoryIcon />, path: '/dashboard/audit-logs' },
     ];
 
@@ -104,7 +117,7 @@ const DashboardLayout = () => {
     const menuItems = user?.role === 'Admin' ? adminMenu : (user?.role === 'Teacher' ? teacherMenu : studentMenu);
     const userInitials = user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U';
 
-    const roleColors = { Admin: '#DC2626', Teacher: '#2563EB', Student: '#16A34A' };
+    const roleColors = { Admin: '#2563EB', Teacher: '#2563EB', Student: '#16A34A' };
     const roleColor = roleColors[user?.role] || '#2563EB';
 
     return (

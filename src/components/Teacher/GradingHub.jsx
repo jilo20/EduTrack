@@ -12,7 +12,11 @@ import LockIcon from '@mui/icons-material/Lock';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 const GradingHub = () => {
-    const teacher = JSON.parse(localStorage.getItem('user'));
+    const teacher = (() => {
+        try {
+            return JSON.parse(localStorage.getItem('user'));
+        } catch (e) { return null; }
+    })();
     const [classes, setClasses] = useState([]);
     const [selectedClassId, setSelectedClassId] = useState('');
     const [selectedAssessmentId, setSelectedAssessmentId] = useState('');
@@ -32,28 +36,42 @@ const GradingHub = () => {
 
     useEffect(() => {
         const fetchClasses = async () => {
-            const res = await fetch(`/api/teacher/${teacher.id}/classes`);
-            const data = await res.json();
-            setClasses(data);
-            if (data.length > 0) setSelectedClassId(data[0].id);
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/teacher/${teacher.id}/classes`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setClasses(data || []);
+                if (data?.length > 0) setSelectedClassId(data[0].id);
+            }
         };
+
         fetchClasses();
-    }, [teacher.id]);
+    }, [teacher?.id]);
+
 
     useEffect(() => {
         if (selectedClassId) {
             const fetchRoster = async () => {
-                const res = await fetch(`/api/class/${selectedClassId}/roster`);
-                const data = await res.json();
-                setRoster(data.students);
-                setAssessments(data.assessments);
-                setDBScores(data.existingScores || []);
-                if (data.assessments.length > 0) setSelectedAssessmentId(data.assessments[0].id);
-                else setSelectedAssessmentId('');
+                const token = localStorage.getItem('token');
+                const res = await fetch(`/api/class/${selectedClassId}/roster`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setRoster(data.students || []);
+                    setAssessments(data.assessments || []);
+                    setDBScores(data.existingScores || []);
+                    if (data?.assessments?.length > 0) setSelectedAssessmentId(data.assessments[0].id);
+                    else setSelectedAssessmentId('');
+                }
             };
+
             fetchRoster();
         }
     }, [selectedClassId]);
+
 
     useEffect(() => {
         if (selectedAssessmentId && dbScores.length > 0) {
@@ -92,9 +110,13 @@ const GradingHub = () => {
     };
 
     const handleCreateAssessment = async () => {
+        const token = localStorage.getItem('token');
         const res = await fetch('/api/create-assessment', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ ...newAssessment, sectionId: selectedClassId })
         });
         const data = await res.json();
@@ -110,9 +132,13 @@ const GradingHub = () => {
             .filter(([id, score]) => score !== '')
             .map(([id, score]) => ({ studentId: id, score: parseFloat(score) }));
 
+        const token = localStorage.getItem('token');
         const res = await fetch('/api/submit-scores', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({
                 assessmentId: selectedAssessmentId,
                 scores: scoresToSubmit,
@@ -121,10 +147,15 @@ const GradingHub = () => {
             })
         });
 
+
         if (res.ok) {
             setSnackbar({ open: true, message: 'Grades finalized and audit logged.', severity: 'success' });
-            const rosterRes = await fetch(`/api/class/${selectedClassId}/roster`);
+            const token = localStorage.getItem('token');
+            const rosterRes = await fetch(`/api/class/${selectedClassId}/roster`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             const rosterData = await rosterRes.json();
+
             setDBScores(rosterData.existingScores || []);
             setEditMode({});
             setChangeReason('');

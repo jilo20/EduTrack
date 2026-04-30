@@ -1,22 +1,63 @@
 import React, { useState } from 'react';
-import { Box, Paper, Typography, Stack, TextField, Button, Alert } from '@mui/material';
+import { Box, Paper, Typography, Stack, TextField, Button, Alert, CircularProgress, Fade } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import bg from '../../assets/bglogin.png';
-import loginhero from '../../assets/loginhero.png';
+import SchoolIcon from '@mui/icons-material/School';
+import BadgeIcon from '@mui/icons-material/Badge';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 const Register = () => {
     const navigate = useNavigate();
+    
+    // Step 1 State
+    const [idNumber, setIdNumber] = useState('');
+    const [verifying, setVerifying] = useState(false);
+    const [isVerified, setIsVerified] = useState(false);
+    const [assignedRole, setAssignedRole] = useState('');
+    
+    // Step 2 State
     const [formData, setFormData] = useState({
-        schoolName: '',
-        adminName: '',
+        name: '',
         email: '',
         password: '',
-        courseProgram: '',
-        yearLevel: '',
-        offerCode: ''
+        confirmPassword: ''
     });
+    const [registering, setRegistering] = useState(false);
+    
+    // Global State
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+
+    const handleVerifyId = async () => {
+        setError('');
+        if (!idNumber.trim()) {
+            setError('Please enter your provided ID number.');
+            return;
+        }
+
+        setVerifying(true);
+        try {
+            const response = await fetch('/api/verify-id', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id_number: idNumber }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.valid) {
+                setIsVerified(true);
+                setAssignedRole(data.role);
+                setSuccess(`ID Verified! You are registering as a ${data.role}.`);
+                setTimeout(() => setSuccess(''), 4000);
+            } else {
+                setError(data.error || 'Invalid ID Number.');
+            }
+        } catch (err) {
+            setError('Unable to verify ID. Check your connection.');
+        } finally {
+            setVerifying(false);
+        }
+    };
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -24,158 +65,200 @@ const Register = () => {
 
     const handleRegister = async () => {
         setError('');
-        setSuccess('');
-
-        // Validation: courseProgram is optional, others required
-        const { courseProgram, ...requiredFields } = formData;
-        if (Object.values(requiredFields).some(val => !val.trim())) {
-            setError('Please fill in all required fields (Year Level and Offer Code are mandatory)');
+        
+        if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
+            setError('Please fill in all account details.');
             return;
         }
 
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            setError('Please enter a valid email address.');
+            return;
+        }
+
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+        if (!passwordRegex.test(formData.password)) {
+            setError('Password must be at least 8 characters and include an uppercase letter, a number, and a special character.');
+            return;
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+            setError('Passwords do not match.');
+            return;
+        }
+
+        setRegistering(true);
         try {
-            const response = await fetch('http://localhost:5000/api/register-school', {
+            const response = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({ 
+                    id_number: idNumber,
+                    ...formData 
+                }),
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                setSuccess(`School Registered! Your portal is at /${formData.schoolName.toLowerCase().replace(/\s+/g, '-')}/login`);
+                setSuccess('Account created successfully! Redirecting to login...');
                 setTimeout(() => {
-                    navigate(`/${formData.schoolName.toLowerCase().replace(/\s+/g, '-')}/login`);
-                }, 3000);
+                    navigate('/login');
+                }, 2000);
             } else {
                 setError(data.error || 'Registration failed.');
             }
         } catch (err) {
             setError('Check your connection and try again.');
+        } finally {
+            setRegistering(false);
         }
     };
 
     return (
-        <Box width={'100vw'} sx={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
-            <Paper elevation={10} sx={{
-                width: '70%', height: '95vh', borderRadius: 5, mt: 3, mb: 3,
-                overflow: 'hidden', display: 'flex', minWidth: '600px',
+        <Box sx={{
+            minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', position: 'relative', overflow: 'hidden'
+        }}>
+            <Paper elevation={12} sx={{
+                width: '100%', maxWidth: 480, mx: 2, p: { xs: 4, sm: 5 },
+                borderRadius: 4, position: 'relative', zIndex: 1,
             }}>
-                <Box sx={{
-                    height: '100%', width: '100%', p: 6,
-                    display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                }}>
-                    <Box sx={{ mb: 3, textAlign: 'center' }}>
-                        <Typography variant="h4" fontWeight="700" color="#2563EB" gutterBottom>
-                            EduTrack
+                <Box sx={{ textAlign: 'center', mb: 4 }}>
+                    <Box sx={{
+                        display: 'inline-flex', p: 1.5, borderRadius: 3,
+                        bgcolor: '#2563EB10', mb: 2
+                    }}>
+                        <SchoolIcon sx={{ fontSize: 40, color: '#2563EB' }} />
+                    </Box>
+                    <Typography variant="h4" fontWeight="800" sx={{
+                        background: 'linear-gradient(135deg, #2563EB, #1d4ed8)',
+                        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px'
+                    }}>
+                        EduTrack
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Create your account to get started
+                    </Typography>
+                </Box>
+
+                <Stack spacing={2.5}>
+                    {error && <Alert severity="error" sx={{ borderRadius: 2 }}>{error}</Alert>}
+                    {success && <Alert severity="success" sx={{ borderRadius: 2 }}>{success}</Alert>}
+
+                    {/* Step 1: ID Verification */}
+                    <Box sx={{ 
+                        opacity: isVerified ? 0.7 : 1, 
+                        pointerEvents: isVerified ? 'none' : 'auto',
+                        transition: 'opacity 0.3s ease'
+                    }}>
+                        <Typography variant="subtitle2" fontWeight={700} color="text.secondary" sx={{ mb: 1, ml: 0.5 }}>
+                            STEP 1: IDENTITY VERIFICATION
                         </Typography>
-                        <Typography variant="h5" fontWeight="600" color="text.primary">
-                            Register your School
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Create a professional multi-tenant hub for your students and teachers
-                        </Typography>
+                        <TextField
+                            label="Your Registration ID Number"
+                            variant="outlined"
+                            fullWidth
+                            value={idNumber}
+                            onChange={(e) => setIdNumber(e.target.value)}
+                            disabled={isVerified}
+                            InputProps={{
+                                startAdornment: <BadgeIcon color="action" sx={{ mr: 1 }} />,
+                                endAdornment: isVerified && <CheckCircleOutlineIcon color="success" />
+                            }}
+                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                        />
+                        {!isVerified && (
+                            <Button
+                                variant="contained"
+                                fullWidth
+                                onClick={handleVerifyId}
+                                disabled={verifying || !idNumber}
+                                sx={{ mt: 2, py: 1.5, borderRadius: 2, fontWeight: 700 }}
+                            >
+                                {verifying ? <CircularProgress size={24} color="inherit" /> : 'Verify ID'}
+                            </Button>
+                        )}
                     </Box>
 
-                    <Stack spacing={2} sx={{ maxWidth: '600px', mx: 'auto', width: '100%' }}>
-                        {error && <Alert severity="error">{error}</Alert>}
-                        {success && <Alert severity="success">{success}</Alert>}
-                        
-                        <TextField
-                            label="School Name"
-                            name="schoolName"
-                            variant="outlined"
-                            fullWidth
-                            size="small"
-                            value={formData.schoolName}
-                            onChange={handleChange}
-                        />
-                        
-                        <Stack direction="row" spacing={2}>
-                            <TextField
-                                label="Admin Full Name"
-                                name="adminName"
-                                variant="outlined"
-                                fullWidth
-                                size="small"
-                                value={formData.adminName}
-                                onChange={handleChange}
-                            />
-                            <TextField
-                                label="Contact Email"
-                                name="email"
-                                variant="outlined"
-                                fullWidth
-                                size="small"
-                                value={formData.email}
-                                onChange={handleChange}
-                            />
-                        </Stack>
+                    {/* Step 2: Account Details */}
+                    {isVerified && (
+                        <Fade in={isVerified}>
+                            <Box sx={{ mt: 2 }}>
+                                <Typography variant="subtitle2" fontWeight={700} color="text.secondary" sx={{ mb: 1, ml: 0.5 }}>
+                                    STEP 2: ACCOUNT DETAILS
+                                </Typography>
+                                <Stack spacing={2}>
+                                    <TextField
+                                        label="Full Name"
+                                        name="name"
+                                        variant="outlined"
+                                        fullWidth
+                                        value={formData.name}
+                                        onChange={handleChange}
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                    />
+                                    <TextField
+                                        label="Email Address"
+                                        name="email"
+                                        type="email"
+                                        variant="outlined"
+                                        fullWidth
+                                        value={formData.email}
+                                        onChange={handleChange}
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                    />
+                                    <TextField
+                                        label="Create Password"
+                                        name="password"
+                                        type="password"
+                                        variant="outlined"
+                                        fullWidth
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        helperText="Min 8 chars, 1 uppercase, 1 number, 1 special char."
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                    />
+                                    <TextField
+                                        label="Confirm Password"
+                                        name="confirmPassword"
+                                        type="password"
+                                        variant="outlined"
+                                        fullWidth
+                                        value={formData.confirmPassword}
+                                        onChange={handleChange}
+                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                    />
+                                    <Button
+                                        variant="contained"
+                                        size="large"
+                                        fullWidth
+                                        onClick={handleRegister}
+                                        disabled={registering}
+                                        sx={{
+                                            py: 1.5, bgcolor: '#059669', fontWeight: '800',
+                                            borderRadius: 2, boxShadow: '0 4px 14px rgba(5,150,105,0.4)',
+                                            '&:hover': { bgcolor: '#047857' }, mt: 1
+                                        }}
+                                    >
+                                        {registering ? <CircularProgress size={24} color="inherit" /> : `Complete ${assignedRole} Registration`}
+                                    </Button>
+                                </Stack>
+                            </Box>
+                        </Fade>
+                    )}
 
-                        <TextField
-                            label="Setup Admin Password"
-                            name="password"
-                            type="password"
-                            variant="outlined"
-                            fullWidth
-                            size="small"
-                            value={formData.password}
-                            onChange={handleChange}
-                        />
-
-                        <Box sx={{ pt: 1 }}>
-                            <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontWeight: 700 }}>
-                                INITIAL CLASS SETUP
-                            </Typography>
-                            <TextField
-                                label="Course / Program (Optional)"
-                                name="courseProgram"
-                                variant="outlined"
-                                fullWidth
-                                size="small"
-                                placeholder="e.g. BS in Information Technology"
-                                value={formData.courseProgram}
-                                onChange={handleChange}
-                                sx={{ mb: 2 }}
-                            />
-                            <Stack direction="row" spacing={2}>
-                                <TextField
-                                    label="Grade / Year Level"
-                                    name="yearLevel"
-                                    variant="outlined"
-                                    fullWidth
-                                    size="small"
-                                    placeholder="e.g. 1st Year"
-                                    value={formData.yearLevel}
-                                    onChange={handleChange}
-                                />
-                                <TextField
-                                    label="Section / Offer Code"
-                                    name="offerCode"
-                                    variant="outlined"
-                                    fullWidth
-                                    size="small"
-                                    placeholder="e.g. IT101A"
-                                    value={formData.offerCode}
-                                    onChange={handleChange}
-                                />
-                            </Stack>
-                        </Box>
-
-                        <Button
-                            variant="contained"
-                            size="large"
-                            fullWidth
-                            onClick={handleRegister}
-                            sx={{
-                                py: 1.5, mt: 1, bgcolor: '#2563EB', fontWeight: 'bold',
-                                '&:hover': { bgcolor: '#1d4ed8' }
-                            }}
+                    <Typography variant="body2" align="center" sx={{ mt: 2 }}>
+                        Already have an account?{' '}
+                        <Box component="span"
+                            onClick={() => navigate('/login')}
+                            sx={{ color: '#2563EB', cursor: 'pointer', fontWeight: 'bold', '&:hover': { textDecoration: 'underline' } }}
                         >
-                            Create My School
-                        </Button>
-                    </Stack>
-                </Box>
+                            Sign In
+                        </Box>
+                    </Typography>
+                </Stack>
             </Paper>
         </Box>
     );

@@ -10,7 +10,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import WarningIcon from '@mui/icons-material/Warning';
 
 const Assignments = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    const [user, setUser] = useState(null);
     const [filter, setFilter] = useState('All Status');
     const [typeFilter, setTypeFilter] = useState('All Types');
     const [assignments, setAssignments] = useState([]);
@@ -18,28 +18,47 @@ const Assignments = () => {
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
+        try {
+            const stored = localStorage.getItem('user');
+            if (stored) setUser(JSON.parse(stored));
+            else setLoading(false);
+        } catch (e) {
+            console.error('Failed to parse user', e);
+            setLoading(false);
+        }
+    }, []);
+
+
+    useEffect(() => {
+        if (!user?.id) return;
         const fetchAssignments = async () => {
+            const token = localStorage.getItem('token');
             try {
-                const res = await fetch(`/api/student/${user.id}/performance`);
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    const mapped = data.map(p => ({
-                        id: p.id,
-                        title: p.title,
-                        subject: p.sectionName,
-                        type: p.type,
-                        status: p.achievedScore !== null ? 'Graded' : 'Pending',
-                        score: p.achievedScore,
-                        perfectScore: p.perfectScore,
-                        percentage: p.achievedScore !== null ? Math.round((p.achievedScore / p.perfectScore) * 100) : null
-                    }));
-                    setAssignments(mapped);
+                const res = await fetch(`/api/student/${user.id}/performance`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        const mapped = data.map(p => ({
+                            id: p.id,
+                            title: p.title,
+                            subject: p.sectionName,
+                            type: p.type,
+                            status: p.achievedScore !== null ? 'Graded' : 'Pending',
+                            score: p.achievedScore,
+                            perfectScore: p.perfectScore,
+                            percentage: p.achievedScore !== null ? Math.round((p.achievedScore / p.perfectScore) * 100) : null
+                        }));
+                        setAssignments(mapped);
+                    }
                 }
-            } catch (err) { console.error('Assignments fetch failed'); }
+            } catch (err) { console.error('Assignments fetch failed', err); }
             finally { setLoading(false); }
         };
         fetchAssignments();
-    }, [user.id]);
+    }, [user?.id]);
+
 
     const filteredAssignments = useMemo(() => {
         return assignments.filter(a => {
