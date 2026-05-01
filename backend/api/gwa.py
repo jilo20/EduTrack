@@ -83,12 +83,24 @@ def compute_section_grade(student_id, section_id):
 
     # Normalize if not all categories have scores
     section_grade = round(weighted_total / total_weight_used, 2) if total_weight_used > 0 else 0
+    passing_grade = section.settings.get('passing_grade', 60)
+    equivalent_grade = percentage_to_grade_point(section_grade, passing_grade)
+
+    # Add equivalent grades to categories
+    for atype in category_breakdown:
+        category_breakdown[atype]['equivalentGrade'] = percentage_to_grade_point(
+            category_breakdown[atype]['average'], 
+            passing_grade
+        )
 
     return {
         'sectionId': section_id,
         'sectionName': section.course_program,
         'sectionCode': section.code_name,
         'sectionGrade': section_grade,
+        'equivalentGrade': equivalent_grade,
+        'gradeDescription': get_grade_description(equivalent_grade),
+        'passingGrade': passing_grade,
         'categoryBreakdown': category_breakdown,
         'weights': weights,
         'totalAssessments': assessments.count(),
@@ -114,7 +126,10 @@ def compute_student_gwa(student_id):
             graded_sections += 1
 
     gwa = round(total_grade / graded_sections, 2) if graded_sections > 0 else 0
-    equivalent_grade = percentage_to_grade_point(gwa)
+    
+    # Use 75 as default GWA passing grade or average of section passing grades?
+    # For now, let's stick to the 75 default for overall GWA unless we want to be more complex.
+    equivalent_grade = percentage_to_grade_point(gwa, 60)
 
     return {
         'studentId': student_id,
@@ -124,23 +139,33 @@ def compute_student_gwa(student_id):
         'sectionGrades': section_grades,
         'totalSections': len(enrollment_section_ids),
         'gradedSections': graded_sections,
-        'formula': f"GWA = Σ(Section Grades) / {graded_sections} = {total_grade:.2f} / {graded_sections} = {gwa}%",
+        'formula': f"GWA = Σ(Section Grades) / {graded_sections} = {total_grade:.2f} / {graded_sections} = {gwa}% (Equivalent: {equivalent_grade})",
         'defaultWeights': DEFAULT_WEIGHTS,
     }
 
 
-def percentage_to_grade_point(percentage):
-    """Philippine grading scale conversion."""
-    if percentage >= 97: return 1.00
-    if percentage >= 94: return 1.25
-    if percentage >= 91: return 1.50
-    if percentage >= 88: return 1.75
-    if percentage >= 85: return 2.00
-    if percentage >= 82: return 2.25
-    if percentage >= 79: return 2.50
-    if percentage >= 76: return 2.75
-    if percentage >= 75: return 3.00
-    return 5.00
+def percentage_to_grade_point(percentage, passing_grade=60):
+    """Philippine grading scale conversion (3.0 - 1.0)."""
+    if percentage < passing_grade:
+        return 5.00
+    
+    if percentage >= 100: return 1.00
+    
+    # Scale from passing_grade (3.0) to 100 (1.0)
+    range_val = 100 - passing_grade
+    if range_val <= 0: return 3.00
+    
+    step = range_val / 8 # 8 steps: 1.0 to 2.75
+    
+    if percentage >= 100 - step * 0.5: return 1.00
+    if percentage >= 100 - step * 1.5: return 1.25
+    if percentage >= 100 - step * 2.5: return 1.50
+    if percentage >= 100 - step * 3.5: return 1.75
+    if percentage >= 100 - step * 4.5: return 2.00
+    if percentage >= 100 - step * 5.5: return 2.25
+    if percentage >= 100 - step * 6.5: return 2.50
+    if percentage >= 100 - step * 7.5: return 2.75
+    return 3.00
 
 
 def get_grade_description(grade_point):

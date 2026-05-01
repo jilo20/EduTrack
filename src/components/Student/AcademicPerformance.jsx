@@ -130,11 +130,11 @@ const AcademicPerformance = () => {
                                 <Typography variant="h6" fontWeight={700}>Overall GWA</Typography>
                             </Stack>
                             <Typography variant="h2" fontWeight={900} sx={{ color: gradeColor }}>
-                                {gwaData?.gwa || 0}%
+                                {gwaData?.equivalentGrade || '—'}
                             </Typography>
                             <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mt: 1 }}>
                                 <Typography variant="h5" fontWeight={800}>
-                                    {gwaData?.equivalentGrade || '—'}
+                                    {gwaData?.gwa || 0}%
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary" fontWeight={600}>
                                     ({gwaData?.gradeDescription || 'N/A'})
@@ -165,7 +165,10 @@ const AcademicPerformance = () => {
                                             {section.sectionName}
                                             <Chip label={section.sectionCode} size="small" sx={{ ml: 1, fontWeight: 700, fontSize: '0.65rem' }} />
                                         </Typography>
-                                        <Chip label={`${section.sectionGrade}%`} color={section.sectionGrade >= 85 ? 'success' : 'primary'} sx={{ fontWeight: 800 }} />
+                                        <Stack direction="row" spacing={1}>
+                                            <Chip label={section.equivalentGrade} color={section.sectionGrade >= 85 ? 'success' : 'primary'} sx={{ fontWeight: 800 }} />
+                                            <Chip label={`${section.sectionGrade}%`} variant="outlined" size="small" sx={{ fontWeight: 700, fontSize: '0.7rem' }} />
+                                        </Stack>
                                     </Stack>
 
                                     {/* Category averages */}
@@ -176,7 +179,9 @@ const AcademicPerformance = () => {
                                                     <Typography variant="body2" fontWeight={600}>
                                                         {type} <Typography component="span" variant="caption" color="text.secondary">({data.weight}% weight)</Typography>
                                                     </Typography>
-                                                    <Typography variant="body2" fontWeight={800}>{data.average}%</Typography>
+                                                    <Typography variant="body2" fontWeight={800}>
+                                                        {data.equivalentGrade} <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>({data.average}%)</Typography>
+                                                    </Typography>
                                                 </Stack>
                                                 <LinearProgress variant="determinate" value={data.average}
                                                     sx={{

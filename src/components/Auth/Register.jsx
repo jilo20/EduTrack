@@ -88,6 +88,10 @@ const Register = () => {
             return;
         }
 
+        const nameParts = formData.name.trim().split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
         setRegistering(true);
         try {
             const response = await fetch('/api/register', {
@@ -95,7 +99,12 @@ const Register = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     id_number: idNumber,
-                    ...formData 
+                    role: assignedRole,
+                    username: formData.email, // Use email as username
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: formData.email,
+                    password: formData.password
                 }),
             });
 

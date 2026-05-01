@@ -3,7 +3,9 @@ import {
     Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     Button, Chip, Stack, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
     Autocomplete, Checkbox, Snackbar, Alert, Avatar, List, ListItem, ListItemAvatar, ListItemText,
-    Divider, IconButton, FormControl, InputLabel, Select, MenuItem, InputAdornment, Card, CardContent
+    Divider, IconButton, FormControl, InputLabel, Select, MenuItem, InputAdornment, Card, CardContent,
+    Drawer, ListSubheader, LinearProgress, Grid, Collapse,
+    FormControlLabel, FormGroup
 } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
@@ -17,6 +19,12 @@ import SummarizeIcon from '@mui/icons-material/Summarize';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import CampaignIcon from '@mui/icons-material/Campaign';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import CloseIcon from '@mui/icons-material/Close';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 const icon = <CheckBoxOutlineBlankIcon fontSize="small" />;
 const checkedIcon = <CheckBoxIcon fontSize="small" />;
@@ -34,7 +42,18 @@ const TeacherClasses = () => {
     const [createOpen, setCreateOpen] = useState(false);
     const [selectedClass, setSelectedClass] = useState(null);
     const [selectedStudents, setSelectedStudents] = useState([]);
-    const [newClass, setNewClass] = useState({ name: '', section: '', description: '', schedule: 'TBA' });
+    const [newClass, setNewClass] = useState({ 
+        name: '', section: '', description: '', schedule: 'TBA',
+        assessmentCategories: ['Written Works', 'Performance Tasks', 'Major Exams'],
+        weights: {
+            'Written Works': 30,
+            'Performance Tasks': 30,
+            'Major Exams': 40
+        },
+        passingGrade: 75,
+        days: [],
+        time: ''
+    });
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const [rosterOpen, setRosterOpen] = useState(false);
     const [rosterStudents, setRosterStudents] = useState([]);
@@ -48,6 +67,9 @@ const TeacherClasses = () => {
     const [reportOpen, setReportOpen] = useState(false);
     const [reportData, setReportData] = useState(null);
     const [loadingReport, setLoadingReport] = useState(false);
+    const [expandedStudentId, setExpandedStudentId] = useState(null);
+    const [studentDetails, setStudentDetails] = useState({}); // Cache for student details
+    const [loadingStudentDetail, setLoadingStudentDetail] = useState(false);
 
     // Announce Dialog
     const [announceOpen, setAnnounceOpen] = useState(false);
@@ -71,14 +93,13 @@ const TeacherClasses = () => {
         fetchClasses();
         const fetchStudents = async () => {
             const token = localStorage.getItem('token');
-            const res = await fetch('/api/stats', {
+            const res = await fetch('/api/students', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
-            const data = await res.json();
-            setAllStudents(Array.isArray(data.students) ? data.students : []);
-        }
-
+                const data = await res.json();
+                setAllStudents(Array.isArray(data) ? data : []);
+            }
         };
         fetchStudents();
     }, [teacher.id]);
@@ -114,24 +135,61 @@ const TeacherClasses = () => {
     };
 
     const handleCreateClass = async () => {
-        if (!newClass.name.trim() || !newClass.section.trim()) {
-            setSnackbar({ open: true, message: 'Please fill in all fields.', severity: 'error' });
+        const totalWeight = Object.values(newClass.weights).reduce((a, b) => a + b, 0);
+        if (totalWeight !== 100) {
+            setSnackbar({ open: true, message: `Total weight must be 100% (currently ${totalWeight}%).`, severity: 'error' });
             return;
         }
+
+        console.log("Creating class with data:", newClass);
+
         const token = localStorage.getItem('token');
+        
+        // Convert weights to decimal (e.g. 30 -> 0.3)
+        const decimalWeights = {};
+        Object.entries(newClass.weights).forEach(([k, v]) => {
+            decimalWeights[k] = v / 100;
+        });
+
         const res = await fetch('/api/create-class', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ ...newClass, teacherId: teacher.id })
+            body: JSON.stringify({ 
+                ...newClass, 
+                schedule: newClass.days.length > 0 
+                    ? `${newClass.days.join(', ')} ${newClass.time ? `(${newClass.time})` : ''}` 
+                    : 'TBA',
+                weights: decimalWeights,
+                teacherId: teacher.id 
+            })
         });
+
         if (res.ok) {
             setCreateOpen(false);
-            setNewClass({ name: '', section: '', description: '', schedule: 'TBA' });
+            setNewClass({ 
+                name: '', section: '', description: '', schedule: 'TBA',
+                assessmentCategories: ['Written Works', 'Performance Tasks', 'Major Exams'],
+                weights: {
+                    'Written Works': 30,
+                    'Performance Tasks': 30,
+                    'Major Exams': 40
+                },
+                passingGrade: 75,
+                days: [],
+                time: ''
+            });
             setSnackbar({ open: true, message: 'Class created successfully!', severity: 'success' });
             fetchClasses();
+        } else {
+            const errorData = await res.json().catch(() => ({}));
+            if (res.status === 401) {
+                setSnackbar({ open: true, message: 'Session expired. Please log in again.', severity: 'error' });
+            } else {
+                setSnackbar({ open: true, message: errorData.error || 'Failed to create class.', severity: 'error' });
+            }
         }
     };
 
@@ -171,6 +229,32 @@ const TeacherClasses = () => {
             setReportOpen(false);
         } finally {
             setLoadingReport(false);
+        }
+    };
+
+    const handleToggleExpand = async (student) => {
+        if (expandedStudentId === student.id) {
+            setExpandedStudentId(null);
+            return;
+        }
+
+        setExpandedStudentId(student.id);
+        if (studentDetails[student.id]) return; // Already have data
+
+        setLoadingStudentDetail(true);
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`/api/class/${selectedClass.id}/student/${student.id}/report`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setStudentDetails(prev => ({ ...prev, [student.id]: data }));
+            }
+        } catch (err) {
+            setSnackbar({ open: true, message: 'Failed to load student detail.', severity: 'error' });
+        } finally {
+            setLoadingStudentDetail(false);
         }
     };
 
@@ -363,23 +447,152 @@ const TeacherClasses = () => {
                             value={newClass.name} onChange={(e) => setNewClass({ ...newClass, name: e.target.value })} />
                         <TextField label="Section / Offer Code" fullWidth placeholder="e.g. 11073"
                             value={newClass.section} onChange={(e) => setNewClass({ ...newClass, section: e.target.value })} />
-                        <FormControl fullWidth>
-                            <InputLabel>Weekday Schedule</InputLabel>
-                            <Select value={newClass.schedule} label="Weekday Schedule" onChange={(e) => setNewClass({ ...newClass, schedule: e.target.value })}>
-                                <MenuItem value="MWF">MWF (Mon, Wed, Fri)</MenuItem>
-                                <MenuItem value="TTH">TTH (Tue, Thu)</MenuItem>
-                                <MenuItem value="Sat">Saturday</MenuItem>
-                                <MenuItem value="Daily">Daily</MenuItem>
-                                <MenuItem value="TBA">To Be Announced</MenuItem>
-                            </Select>
-                        </FormControl>
+                        <Box>
+                            <Typography variant="subtitle2" fontWeight={700} color="text.secondary" sx={{ mb: 1 }}>
+                                Class Days
+                            </Typography>
+                            <FormGroup row>
+                                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                                    <FormControlLabel
+                                        key={day}
+                                        control={
+                                            <Checkbox 
+                                                checked={newClass.days.includes(day)}
+                                                onChange={(e) => {
+                                                    const updatedDays = e.target.checked 
+                                                        ? [...newClass.days, day]
+                                                        : newClass.days.filter(d => d !== day);
+                                                    setNewClass({ ...newClass, days: updatedDays });
+                                                }}
+                                            />
+                                        }
+                                        label={<Typography variant="body2">{day}</Typography>}
+                                    />
+                                ))}
+                            </FormGroup>
+                        </Box>
+                        <TextField 
+                            fullWidth 
+                            label="Class Time" 
+                            placeholder="e.g. 9:00 AM - 10:30 AM" 
+                            value={newClass.time} 
+                            onChange={(e) => setNewClass({ ...newClass, time: e.target.value })} 
+                        />
+                        <TextField fullWidth type="number" label="Passing Grade (%)" value={newClass.passingGrade} onChange={(e) => setNewClass({ ...newClass, passingGrade: e.target.value })} 
+                            helperText="Define the threshold for a passing mark (e.g. 60 or 75)" />
+                        
+                        <Box>
+                            <Typography variant="subtitle2" fontWeight={700} color="text.secondary" sx={{ mb: 1 }}>
+                                1. Select Categories to Include
+                            </Typography>
+                            <FormGroup row>
+                                {[
+                                    { id: 'Written Works', label: 'Written Works' },
+                                    { id: 'Performance Tasks', label: 'Performance Tasks' },
+                                    { id: 'Major Exams', label: 'Major Examinations' },
+                                    { id: 'Projects', label: 'Projects & Portfolio' },
+                                    { id: 'Other', label: 'Other Assessments' }
+                                ].map(cat => (
+                                    <FormControlLabel
+                                        key={cat.id}
+                                        control={
+                                            <Checkbox 
+                                                checked={newClass.assessmentCategories.includes(cat.id)}
+                                                onChange={(e) => {
+                                                    const updatedCategories = e.target.checked 
+                                                        ? [...newClass.assessmentCategories, cat.id]
+                                                        : newClass.assessmentCategories.filter(id => id !== cat.id);
+                                                    
+                                                    // Update weights: assign 0 to new, remove old
+                                                    const updatedWeights = { ...newClass.weights };
+                                                    if (e.target.checked) updatedWeights[cat.id] = 0;
+                                                    else delete updatedWeights[cat.id];
+
+                                                    setNewClass({ 
+                                                        ...newClass, 
+                                                        assessmentCategories: updatedCategories,
+                                                        weights: updatedWeights
+                                                    });
+                                                }}
+                                            />
+                                        }
+                                        label={<Typography variant="body2">{cat.label}</Typography>}
+                                    />
+                                ))}
+                            </FormGroup>
+                        </Box>
+
+                        {newClass.assessmentCategories.length > 0 && (
+                            <Box sx={{ mt: 1, p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                                <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
+                                    2. Set Category Weights
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                                    Assign a percentage to each category. The total must be exactly 100%.
+                                </Typography>
+                                <Grid container spacing={2} alignItems="center">
+                                    {newClass.assessmentCategories.map(catId => (
+                                        <Grid item xs={6} key={catId}>
+                                            <TextField
+                                                label={catId}
+                                                type="number"
+                                                size="small"
+                                                fullWidth
+                                                value={newClass.weights[catId] || ''}
+                                                onChange={(e) => {
+                                                    setNewClass({
+                                                        ...newClass,
+                                                        weights: { ...newClass.weights, [catId]: parseInt(e.target.value) || 0 }
+                                                    });
+                                                }}
+                                                InputProps={{
+                                                    endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                                                }}
+                                            />
+                                        </Grid>
+                                    ))}
+                                </Grid>
+                                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Typography variant="body2" fontWeight={700} color={
+                                        Object.values(newClass.weights).reduce((a, b) => a + b, 0) === 100 ? 'success.main' : 'error.main'
+                                    }>
+                                        Total Weight: {Object.values(newClass.weights).reduce((a, b) => a + b, 0)}%
+                                    </Typography>
+                                    {Object.values(newClass.weights).reduce((a, b) => a + b, 0) !== 100 && (
+                                        <Typography variant="caption" color="error" sx={{ fontWeight: 600 }}>
+                                            {Object.values(newClass.weights).reduce((a, b) => a + b, 0) < 100 
+                                                ? `Missing ${100 - Object.values(newClass.weights).reduce((a, b) => a + b, 0)}%` 
+                                                : `Exceeds by ${Object.values(newClass.weights).reduce((a, b) => a + b, 0) - 100}%`}
+                                        </Typography>
+                                    )}
+                                </Box>
+                            </Box>
+                        )}
                         <TextField label="Description (optional)" fullWidth multiline rows={2} placeholder="e.g. Covers image segmentation, noise filtering, and edge detection"
                             value={newClass.description} onChange={(e) => setNewClass({ ...newClass, description: e.target.value })} />
                     </Stack>
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
                     <Button onClick={() => setCreateOpen(false)} sx={{ fontWeight: 700 }}>Cancel</Button>
-                    <Button variant="contained" onClick={handleCreateClass} sx={{ bgcolor: '#2563EB', fontWeight: 700 }}>Create Class</Button>
+                    <Button 
+                        variant="contained" 
+                        onClick={handleCreateClass} 
+                        disabled={
+                            !newClass.name.trim() || 
+                            !newClass.section.trim() || 
+                            Object.values(newClass.weights).reduce((a, b) => a + b, 0) !== 100
+                        }
+                        sx={{ 
+                            bgcolor: '#2563EB', 
+                            fontWeight: 700,
+                            '&:disabled': {
+                                bgcolor: '#e2e8f0',
+                                color: '#94a3b8'
+                            }
+                        }}
+                    >
+                        Create Class
+                    </Button>
                 </DialogActions>
             </Dialog>
 
@@ -493,7 +706,7 @@ const TeacherClasses = () => {
                             <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
                                 {[
                                     { label: 'Students', value: reportData.totalStudents, color: '#2563eb' },
-                                    { label: 'Class Average', value: `${reportData.classAverage}%`, color: '#059669' },
+                                    { label: 'Class Average', value: reportData.classAverageEquiv, color: '#059669' },
                                     { label: 'Attendance', value: `${reportData.attendanceRate}%`, color: '#7c3aed' },
                                     { label: 'Passing', value: `${reportData.passingCount}/${reportData.totalStudents}`, color: '#f59e0b' },
                                 ].map(s => (
@@ -507,35 +720,146 @@ const TeacherClasses = () => {
                             <Typography variant="subtitle2" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
                                 Individual Performance
                             </Typography>
-                            <List sx={{ maxHeight: 400, overflow: 'auto' }}>
-                                {(reportData.students || []).map((s, idx) => (
-                                    <ListItem key={idx} sx={{ borderBottom: '1px solid', borderColor: 'divider', py: 1.5 }}>
-                                        <ListItemAvatar>
-                                            <Avatar sx={{ bgcolor: s.grade >= 75 ? '#dcfce7' : '#fee2e2', color: s.grade >= 75 ? '#16a34a' : '#dc2626', fontWeight: 800, fontSize: '0.8rem' }}>
-                                                {(s?.name || '').split(' ').map(n => n?.[0] || '').join('').slice(0, 2)}
+                            <List sx={{ maxHeight: 500, overflow: 'auto' }}>
+                                {(reportData.students || []).map((s, idx) => {
+                                    const isExpanded = expandedStudentId === s.id;
+                                    const details = studentDetails[s.id];
 
-                                            </Avatar>
-                                        </ListItemAvatar>
-                                        <ListItemText
-                                            primary={<Typography fontWeight={700}>{s.name}</Typography>}
-                                            secondary={`Attendance: ${s.attendanceRate}%`}
-                                        />
-                                        <Stack alignItems="flex-end">
-                                            <Typography variant="h6" fontWeight={900} color={s.grade >= 75 ? '#16a34a' : '#dc2626'}>
-                                                {s.grade}%
-                                            </Typography>
-                                            <Chip
-                                                label={s.grade >= 75 ? 'PASSED' : 'FAILED'}
-                                                size="small"
-                                                sx={{
-                                                    fontWeight: 800, fontSize: '0.6rem', height: 20,
-                                                    bgcolor: s.grade >= 75 ? '#dcfce7' : '#fee2e2',
-                                                    color: s.grade >= 75 ? '#16a34a' : '#dc2626'
-                                                }}
-                                            />
-                                        </Stack>
-                                    </ListItem>
-                                ))}
+                                    return (
+                                        <React.Fragment key={s.id || idx}>
+                                            <ListItem button onClick={() => handleToggleExpand(s)}
+                                                sx={{ 
+                                                    borderBottom: '1px solid', borderColor: 'divider', py: 1.5,
+                                                    bgcolor: isExpanded ? 'rgba(37, 99, 235, 0.04)' : 'transparent',
+                                                    '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.08)' },
+                                                    cursor: 'pointer',
+                                                    transition: 'background-color 0.2s'
+                                                }}>
+                                                <ListItemAvatar>
+                                                    <Avatar sx={{ bgcolor: s.grade >= 75 ? '#dcfce7' : '#fee2e2', color: s.grade >= 75 ? '#16a34a' : '#dc2626', fontWeight: 800, fontSize: '0.8rem' }}>
+                                                        {(s?.name || '').split(' ').map(n => n?.[0] || '').join('').slice(0, 2)}
+                                                    </Avatar>
+                                                </ListItemAvatar>
+                                                <ListItemText
+                                                    primary={<Typography fontWeight={700}>{s.name}</Typography>}
+                                                    secondary={`Attendance: ${s.attendanceRate}%`}
+                                                />
+                                                <Stack direction="row" spacing={3} alignItems="center">
+                                                    <Stack alignItems="flex-end">
+                                                        <Typography variant="h6" fontWeight={900} color={s.grade >= 75 ? '#16a34a' : '#dc2626'}>
+                                                            {s.equivalentGrade}
+                                                        </Typography>
+                                                        <Chip
+                                                            label={s.grade >= 75 ? 'PASSED' : 'FAILED'}
+                                                            size="small"
+                                                            sx={{
+                                                                fontWeight: 800, fontSize: '0.6rem', height: 20,
+                                                                bgcolor: s.grade >= 75 ? '#dcfce7' : '#fee2e2',
+                                                                color: s.grade >= 75 ? '#16a34a' : '#dc2626'
+                                                            }}
+                                                        />
+                                                    </Stack>
+                                                    {isExpanded ? <ExpandLessIcon color="action" /> : <ExpandMoreIcon color="action" />}
+                                                </Stack>
+                                            </ListItem>
+
+                                            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                                                <Box sx={{ p: 3, bgcolor: '#f8fafc', borderBottom: '1px solid', borderColor: 'divider' }}>
+                                                    {loadingStudentDetail && !details ? (
+                                                        <Box sx={{ py: 2, textAlign: 'center' }}>
+                                                            <Typography variant="body2" fontWeight={700} color="text.secondary">Fetching details...</Typography>
+                                                            <LinearProgress sx={{ mt: 1, borderRadius: 1 }} />
+                                                        </Box>
+                                                    ) : details ? (
+                                                        <Stack spacing={3}>
+                                                            {/* Detailed Breakdown */}
+                                                            <Grid container spacing={2}>
+                                                                {Object.entries(details.performance.categoryBreakdown).map(([cat, data]) => (
+                                                                    <Grid item xs={12} sm={4} key={cat}>
+                                                                        <Paper elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 3, bgcolor: 'white' }}>
+                                                                            <Typography variant="caption" fontWeight={800} color="text.secondary">{cat.toUpperCase()}</Typography>
+                                                                            <Typography variant="h5" fontWeight={900} color="primary">{data.equivalentGrade}</Typography>
+                                                                            <Typography variant="caption" color="text.secondary" fontWeight={600}>Avg: {data.average}% · Weight: {data.weight}%</Typography>
+                                                                        </Paper>
+                                                                    </Grid>
+                                                                ))}
+                                                            </Grid>
+
+                                                            {/* Assessment List */}
+                                                            <Box>
+                                                                <Typography variant="caption" fontWeight={900} color="text.secondary" sx={{ mb: 1, display: 'block', letterSpacing: 1 }}>ASSESSMENT BREAKDOWN</Typography>
+                                                                <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden', bgcolor: 'white' }}>
+                                                                    <Table size="small">
+                                                                        <TableHead sx={{ bgcolor: '#f1f5f9' }}>
+                                                                            <TableRow>
+                                                                                <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem' }}>TITLE</TableCell>
+                                                                                <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem' }} align="center">SCORE</TableCell>
+                                                                                <TableCell sx={{ fontWeight: 800, fontSize: '0.7rem' }} align="right">PERCENT</TableCell>
+                                                                            </TableRow>
+                                                                        </TableHead>
+                                                                        <TableBody>
+                                                                            {Object.values(details.performance.categoryBreakdown).flatMap(cat => cat.scores).map((score, sidx) => (
+                                                                                <TableRow key={sidx}>
+                                                                                    <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>{score.title}</TableCell>
+                                                                                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>{score.score}/{score.perfectScore}</TableCell>
+                                                                                    <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.75rem', color: 'primary.main' }}>{score.percentage}%</TableCell>
+                                                                                </TableRow>
+                                                                            ))}
+                                                                        </TableBody>
+                                                                    </Table>
+                                                                </Paper>
+                                                            </Box>
+
+                                                            {/* Attendance Log */}
+                                                            <Box>
+                                                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                                                                    <Typography variant="caption" fontWeight={900} color="text.secondary" sx={{ letterSpacing: 1 }}>ATTENDANCE HISTORY</Typography>
+                                                                    <Stack direction="row" spacing={1.5}>
+                                                                        <Typography variant="caption" fontWeight={800} color="#16a34a">P: {details.attendance.counts.present}</Typography>
+                                                                        <Typography variant="caption" fontWeight={800} color="#dc2626">A: {details.attendance.counts.absent}</Typography>
+                                                                        <Typography variant="caption" fontWeight={800} color="#d97706">L: {details.attendance.counts.late}</Typography>
+                                                                    </Stack>
+                                                                </Stack>
+                                                                <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden', bgcolor: 'white' }}>
+                                                                    <Box sx={{ maxHeight: 250, overflowY: 'auto' }}>
+                                                                        <Table size="small" stickyHeader>
+                                                                            <TableHead>
+                                                                                <TableRow>
+                                                                                    <TableCell sx={{ fontWeight: 800, fontSize: '0.65rem', bgcolor: '#f8fafc' }}>DATE</TableCell>
+                                                                                    <TableCell sx={{ fontWeight: 800, fontSize: '0.65rem', bgcolor: '#f8fafc' }}>STATUS</TableCell>
+                                                                                    <TableCell sx={{ fontWeight: 800, fontSize: '0.65rem', bgcolor: '#f8fafc' }}>REMARKS</TableCell>
+                                                                                </TableRow>
+                                                                            </TableHead>
+                                                                            <TableBody>
+                                                                                {details.attendance.records.map((r, ridx) => (
+                                                                                    <TableRow key={ridx} hover>
+                                                                                        <TableCell sx={{ fontSize: '0.75rem', py: 1, fontWeight: 600 }}>
+                                                                                            {new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                                                        </TableCell>
+                                                                                        <TableCell sx={{ py: 1 }}>
+                                                                                            <Chip label={r.status} size="small" sx={{ 
+                                                                                                fontWeight: 800, fontSize: '0.6rem', height: 18,
+                                                                                                bgcolor: r.status === 'Present' ? '#dcfce7' : r.status === 'Absent' ? '#fee2e2' : '#fef3c7',
+                                                                                                color: r.status === 'Present' ? '#16a34a' : r.status === 'Absent' ? '#dc2626' : '#d97706'
+                                                                                            }} />
+                                                                                        </TableCell>
+                                                                                        <TableCell sx={{ fontSize: '0.7rem', color: 'text.secondary', py: 1, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                                            {r.remarks || '—'}
+                                                                                        </TableCell>
+                                                                                    </TableRow>
+                                                                                ))}
+                                                                            </TableBody>
+                                                                        </Table>
+                                                                    </Box>
+                                                                </Paper>
+                                                            </Box>
+                                                        </Stack>
+                                                    ) : null}
+                                                </Box>
+                                            </Collapse>
+                                        </React.Fragment>
+                                    );
+                                })}
                             </List>
                         </Stack>
                     ) : (

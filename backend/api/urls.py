@@ -9,7 +9,7 @@ from api.views import (
     # Teacher
     TeacherClassesView, ClassCreateView, ClassWeightsView,
     ClassRosterView, EnrollStudentsView, ClassAnnouncementView,
-    EndSemesterView, ClassReportView,
+    EndSemesterView, ClassReportView, StudentSectionDetailView,
     AssessmentCreateView, SubmitScoresView,
     ClassAttendanceView, MarkAttendanceView,
     TeacherAnalyticsView,
@@ -48,6 +48,7 @@ urlpatterns = [
     path('class-announcement', ClassAnnouncementView.as_view()),
     path('class/<int:section_id>/end-semester', EndSemesterView.as_view()),
     path('class/<int:section_id>/report', ClassReportView.as_view()),
+    path('class/<int:section_id>/student/<int:student_id>/report', StudentSectionDetailView.as_view()),
     path('create-assessment', AssessmentCreateView.as_view()),
     path('submit-scores', SubmitScoresView.as_view()),
     path('class/<int:section_id>/attendance', ClassAttendanceView.as_view()),
