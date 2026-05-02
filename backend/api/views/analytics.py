@@ -23,6 +23,9 @@ class AdminAnalyticsView(APIView):
         gwas = [compute_student_gwa(s.id)['gwa'] for s in students]
         valid_gwas = [g for g in gwas if g > 0]
         system_avg = round(sum(valid_gwas) / len(valid_gwas), 1) if valid_gwas else 0
+        
+        from api.gwa import percentage_to_grade_point
+        system_avg_equiv = percentage_to_grade_point(system_avg)
 
         recent_activity = [{
             'id': log.id, 'timestamp': log.timestamp.isoformat(),
@@ -34,6 +37,7 @@ class AdminAnalyticsView(APIView):
             'stats': {
                 'totalStudents': students.count(), 'totalTeachers': teachers.count(),
                 'totalSections': sections.count(), 'systemAvgGWA': system_avg,
+                'systemAvgEquiv': system_avg_equiv,
             },
             'enrollmentStats': enrollment_stats,
             'recentActivity': recent_activity,
@@ -48,7 +52,10 @@ class TeacherRichAnalyticsView(APIView):
         if request.user.role == 'Teacher' and request.user.id != teacher_id:
             return Response({'error': 'Access denied.'}, status=403)
 
-        sections = Section.objects.filter(teacher_id=teacher_id)
+        sections = Section.objects.filter(teacher_id=teacher_id, status='active')
+        section_id = request.query_params.get('sectionId')
+        if section_id:
+            sections = sections.filter(id=section_id)
 
         # Class performance
         class_performance = []
@@ -58,9 +65,14 @@ class TeacherRichAnalyticsView(APIView):
             gwas = [compute_section_grade(sid, s.id)['sectionGrade'] for sid in student_ids]
             valid = [g for g in gwas if g > 0]
             avg = round(sum(valid) / len(valid), 1) if valid else 0
+            
+            from api.gwa import percentage_to_grade_point
+            avg_equiv = percentage_to_grade_point(avg)
+
             class_performance.append({
                 'id': s.id, 'name': s.code_name, 'fullName': s.course_program,
-                'average': avg, 'studentCount': len(student_ids),
+                'average': avg, 'averageEquiv': avg_equiv, 'studentCount': len(student_ids),
+                'passingGrade': s.settings.get('passing_grade', 60),
             })
 
         # Assessment stats
@@ -79,32 +91,39 @@ class TeacherRichAnalyticsView(APIView):
         at_risk = []
         for s in sections:
             for e in Enrollment.objects.filter(section=s):
-                grade = compute_section_grade(e.student_id, s.id)['sectionGrade']
-                if 0 < grade < 75:
+                grade_info = compute_section_grade(e.student_id, s.id)
+                grade = grade_info['sectionGrade']
+                passing_grade = s.settings.get('passing_grade', 60)
+                if 0 < grade < passing_grade:
                     at_risk.append({
                         'id': e.student_id, 'name': e.student.get_full_name(),
                         'section': s.code_name, 'grade': grade,
+                        'equivalentGrade': grade_info['equivalentGrade'],
                     })
 
         # Category performance
-        category_stats = {'Quiz': {'sum': 0, 'count': 0}, 'Project': {'sum': 0, 'count': 0}, 'Module Exam': {'sum': 0, 'count': 0}}
+        category_stats = {}
         for s in sections:
             for e in Enrollment.objects.filter(section=s):
                 breakdown = compute_section_grade(e.student_id, s.id)['categoryBreakdown']
                 for atype, data in breakdown.items():
-                    if atype in category_stats:
-                        category_stats[atype]['sum'] += data['average']
-                        category_stats[atype]['count'] += 1
+                    if atype not in category_stats:
+                        category_stats[atype] = {'sum': 0, 'count': 0}
+                    category_stats[atype]['sum'] += data['average']
+                    category_stats[atype]['count'] += 1
 
+        from api.gwa import percentage_to_grade_point
         category_performance = [{
-            'type': t, 'average': round(d['sum'] / d['count'], 1) if d['count'] > 0 else 0,
+            'type': t, 
+            'average': round(d['sum'] / d['count'], 1) if d['count'] > 0 else 0,
+            'equivalentGrade': percentage_to_grade_point(round(d['sum'] / d['count'], 1)) if d['count'] > 0 else 5.00,
         } for t, d in category_stats.items()]
 
         # Attendance
-        att_records = Attendance.objects.filter(section__in=sections)
-        total_att = att_records.count()
-        present = att_records.filter(status='Present').count()
-        late = att_records.filter(status='Late').count()
+        valid_att = Attendance.objects.filter(section__in=sections).exclude(status='No Class')
+        total_att = valid_att.count()
+        present = valid_att.filter(status='Present').count()
+        late = valid_att.filter(status='Late').count()
 
         return Response({
             'classPerformance': class_performance,
@@ -113,7 +132,7 @@ class TeacherRichAnalyticsView(APIView):
             'categoryPerformance': category_performance,
             'attendance': {
                 'total': total_att, 'present': present,
-                'absent': att_records.filter(status='Absent').count(),
+                'absent': valid_att.filter(status='Absent').count(),
                 'late': late,
                 'percentage': round(((present + late * 0.5) / total_att) * 100) if total_att > 0 else 0,
             },
@@ -155,10 +174,10 @@ class StudentAnalyticsView(APIView):
             category_strengths = [{'subject': c, 'A': 0, 'fullMark': 100}
                                   for c in ['Quiz', 'Project', 'Module Exam', 'Assignment']]
 
-        att = Attendance.objects.filter(student_id=student_id)
-        total = att.count()
-        present = att.filter(status='Present').count()
-        late = att.filter(status='Late').count()
+        valid_att = Attendance.objects.filter(student_id=student_id).exclude(status='No Class')
+        total = valid_att.count()
+        present = valid_att.filter(status='Present').count()
+        late = valid_att.filter(status='Late').count()
 
         enrollments = Enrollment.objects.filter(student_id=student_id)
         section_ids = list(enrollments.values_list('section_id', flat=True))
@@ -171,7 +190,7 @@ class StudentAnalyticsView(APIView):
             'categoryStrengths': category_strengths,
             'attendanceStats': {
                 'total': total, 'presentCount': present,
-                'absentCount': att.filter(status='Absent').count(),
+                'absentCount': valid_att.filter(status='Absent').count(),
                 'lateCount': late,
                 'percentage': round(((present + late * 0.5) / total) * 100) if total > 0 else 0,
             },

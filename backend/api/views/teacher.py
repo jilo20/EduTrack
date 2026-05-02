@@ -23,6 +23,7 @@ class TeacherClassesView(APIView):
             'ended_at': s.ended_at.isoformat() if s.ended_at else None,
             'studentCount': Enrollment.objects.filter(section=s).count(),
             'weights': s.settings.get('weights') if s.settings else None,
+            'passingGrade': s.settings.get('passing_grade', 60),
         } for s in sections]
         return Response(data)
 
@@ -36,6 +37,9 @@ class ClassCreateView(APIView):
         teacher_id = request.data.get('teacherId')
         description = request.data.get('description', '')
         schedule = request.data.get('schedule', 'TBA')
+        categories = request.data.get('assessmentCategories', [])
+        weights = request.data.get('weights', {})
+        passing_grade = float(request.data.get('passingGrade', 60))
 
         if request.user.role == 'Teacher' and request.user.id != int(teacher_id):
             return Response({'error': 'Access denied.'}, status=403)
@@ -45,12 +49,17 @@ class ClassCreateView(APIView):
         section = Section.objects.create(
             teacher_id=int(teacher_id), code_name=section_code,
             course_program=name, description=description, schedule=schedule,
+            settings={
+                'assessment_categories': categories,
+                'passing_grade': passing_grade,
+                'weights': weights if weights else {cat: 1.0/len(categories) if categories else 0 for cat in categories}
+            }
         )
         return Response({
             'message': 'Class created',
             'section': {
-                'id': section.id, 'school_id': 1, 'teacher_id': section.teacher_id,
-                'grade_id': 1, 'code_name': section.code_name,
+                'id': section.id, 'teacher_id': section.teacher_id,
+                'code_name': section.code_name,
                 'course_program': section.course_program,
                 'description': section.description, 'schedule': section.schedule,
                 'settings': section.settings,
@@ -108,7 +117,12 @@ class ClassRosterView(APIView):
              'score': s.score, 'status': s.status}
             for s in Score.objects.filter(assessment_id__in=assessment_ids)
         ]
-        return Response({'students': students, 'assessments': assessments, 'existingScores': existing_scores})
+        return Response({
+            'students': students, 
+            'assessments': assessments, 
+            'existingScores': existing_scores,
+            'passingGrade': section.settings.get('passing_grade', 60)
+        })
 
 
 class EnrollStudentsView(APIView):
@@ -210,36 +224,36 @@ class EndSemesterView(APIView):
 
         students_data = []
         for e in enrollments:
-            user = e.student
-            student_scores = Score.objects.filter(student=user, assessment__section=section)
-            total_perc = 0
-            count = 0
-            for s in student_scores:
-                a = s.assessment
-                total_perc += (s.score / a.perfect_score) * 100
-                count += 1
-            grade = round(total_perc / count) if count > 0 else 0
+            grade_info = compute_section_grade(e.student_id, section_id)
+            grade = grade_info['sectionGrade']
+            equivalent_grade = grade_info['equivalentGrade']
 
-            st_att = all_attendance.filter(student=user)
+            st_att = all_attendance.filter(student=e.student).exclude(status='No Class')
             total_days = st_att.count()
             present = st_att.filter(status='Present').count()
             late = st_att.filter(status='Late').count()
             att_rate = round(((present + late * 0.5) / total_days) * 100) if total_days > 0 else 0
 
             students_data.append({
-                'name': user.get_full_name(), 'email': user.email,
-                'grade': grade, 'attendanceRate': att_rate,
+                'id': e.student.id, 'name': e.student.get_full_name(), 'email': e.student.email,
+                'grade': grade, 'equivalentGrade': equivalent_grade, 'attendanceRate': att_rate,
             })
 
         students_data.sort(key=lambda x: x['grade'], reverse=True)
 
         grades = [s['grade'] for s in students_data if s['grade'] > 0]
         class_avg = round(sum(grades) / len(grades)) if grades else 0
-        passing = sum(1 for s in students_data if s['grade'] >= 75)
+        passing_grade = section.settings.get('passing_grade', 75)
+        
+        from api.gwa import percentage_to_grade_point
+        class_avg_equiv = percentage_to_grade_point(class_avg, passing_grade)
 
-        total_att = all_attendance.count()
-        total_present = all_attendance.filter(status='Present').count()
-        total_late = all_attendance.filter(status='Late').count()
+        passing = sum(1 for s in students_data if s['grade'] >= passing_grade)
+
+        valid_att = all_attendance.exclude(status='No Class')
+        total_att = valid_att.count()
+        total_present = valid_att.filter(status='Present').count()
+        total_late = valid_att.filter(status='Late').count()
         att_rate = round(((total_present + total_late * 0.5) / total_att) * 100) if total_att > 0 else 0
 
         section.status = 'completed'
@@ -253,13 +267,13 @@ class EndSemesterView(APIView):
             report = next((s for s in students_data if s['email'] == e.student.email), None)
             create_notification(
                 e.student, 'Semester Ended',
-                f'{section.course_program} ({section.code_name}) has been marked as completed. Your final grade: {report["grade"] if report else 0}%.'
+                f'{section.course_program} ({section.code_name}) has been marked as completed. Final grade: {report["equivalentGrade"] if report else "5.00"} ({report["grade"] if report else 0}%).'
             )
 
         for admin in User.objects.filter(role='Admin'):
             create_notification(
                 admin, 'Section Completed',
-                f'Teacher {request.user.get_full_name()} has ended the semester for {section.course_program} ({section.code_name}). Average Grade: {class_avg}%.'
+                f'Teacher {request.user.get_full_name()} has ended the semester for {section.course_program} ({section.code_name}). Avg: {class_avg_equiv} ({class_avg}%).'
             )
 
         return Response({
@@ -267,6 +281,7 @@ class EndSemesterView(APIView):
             'report': {
                 'className': section.course_program, 'sectionCode': section.code_name,
                 'totalStudents': len(students_data), 'classAverage': class_avg,
+                'classAverageEquiv': class_avg_equiv,
                 'attendanceRate': att_rate, 'passingCount': passing,
                 'students': students_data,
             }
@@ -290,37 +305,103 @@ class ClassReportView(APIView):
 
         students_data = []
         for e in enrollments:
-            user = e.student
-            student_scores = Score.objects.filter(student=user, assessment__section=section)
-            total_perc = 0
-            count = 0
-            for s in student_scores:
-                total_perc += (s.score / s.assessment.perfect_score) * 100
-                count += 1
-            grade = round(total_perc / count) if count > 0 else 0
+            grade_info = compute_section_grade(e.student_id, section_id)
+            grade = grade_info['sectionGrade']
+            equivalent_grade = grade_info['equivalentGrade']
 
-            st_att = all_attendance.filter(student=user)
+            st_att = all_attendance.filter(student=e.student).exclude(status='No Class')
             total_days = st_att.count()
             present = st_att.filter(status='Present').count()
             late = st_att.filter(status='Late').count()
             att_rate = round(((present + late * 0.5) / total_days) * 100) if total_days > 0 else 0
 
-            students_data.append({'name': user.get_full_name(), 'email': user.email, 'grade': grade, 'attendanceRate': att_rate})
+            students_data.append({
+                'id': e.student.id, 'name': e.student.get_full_name(), 'email': e.student.email, 
+                'grade': grade, 'equivalentGrade': equivalent_grade, 'attendanceRate': att_rate
+            })
 
         students_data.sort(key=lambda x: x['grade'], reverse=True)
         grades = [s['grade'] for s in students_data if s['grade'] > 0]
         class_avg = round(sum(grades) / len(grades)) if grades else 0
-        passing = sum(1 for s in students_data if s['grade'] >= 75)
+        passing_grade = section.settings.get('passing_grade', 75)
+        
+        from api.gwa import percentage_to_grade_point
+        class_avg_equiv = percentage_to_grade_point(class_avg, passing_grade)
 
-        total_att = all_attendance.count()
-        total_present = all_attendance.filter(status='Present').count()
-        total_late = all_attendance.filter(status='Late').count()
+        passing = sum(1 for s in students_data if s['grade'] >= passing_grade)
+
+        valid_att = all_attendance.exclude(status='No Class')
+        total_att = valid_att.count()
+        total_present = valid_att.filter(status='Present').count()
+        total_late = valid_att.filter(status='Late').count()
         att_rate = round(((total_present + total_late * 0.5) / total_att) * 100) if total_att > 0 else 0
 
         return Response({
             'className': section.course_program, 'sectionCode': section.code_name,
             'totalStudents': len(students_data), 'classAverage': class_avg,
+            'classAverageEquiv': class_avg_equiv,
             'attendanceRate': att_rate, 'passingCount': passing, 'students': students_data,
+            'passingGrade': passing_grade
+        })
+
+
+class StudentSectionDetailView(APIView):
+    permission_classes = [IsTeacherOrAdmin]
+
+    def get(self, request, section_id, student_id):
+        section_id = int(section_id)
+        student_id = int(student_id)
+
+        try:
+            section = Section.objects.get(id=section_id)
+            student = User.objects.get(id=student_id)
+        except (Section.DoesNotExist, User.DoesNotExist):
+            return Response({'error': 'Section or Student not found.'}, status=404)
+
+        if request.user.role == 'Teacher' and section.teacher_id != request.user.id:
+            return Response({'error': 'Access denied.'}, status=403)
+
+        # 1. Performance data (scores and GWA)
+        performance = compute_section_grade(student_id, section_id)
+
+        # 2. Attendance data
+        attendance_qs = Attendance.objects.filter(section=section, student=student).order_by('-date')
+        attendance_records = [
+            {'date': str(r.date), 'status': r.status, 'remarks': r.remarks}
+            for r in attendance_qs
+        ]
+
+        # 3. Summary stats
+        valid_qs = attendance_qs.exclude(status='No Class')
+        total_days = valid_qs.count()
+        present = valid_qs.filter(status='Present').count()
+        absent = valid_qs.filter(status='Absent').count()
+        late = valid_qs.filter(status='Late').count()
+        att_rate = round(((present + late * 0.5) / total_days) * 100) if total_days > 0 else 0
+
+        return Response({
+            'student': {
+                'id': student.id,
+                'name': student.get_full_name(),
+                'email': student.email,
+                'id_number': student.id_number,
+            },
+            'section': {
+                'id': section.id,
+                'name': section.course_program,
+                'code': section.code_name,
+            },
+            'performance': performance,
+            'attendance': {
+                'records': attendance_records,
+                'rate': att_rate,
+                'counts': {
+                    'total': total_days,
+                    'present': present,
+                    'absent': absent,
+                    'late': late,
+                }
+            }
         })
 
 
@@ -457,38 +538,32 @@ class TeacherAnalyticsView(APIView):
         if request.user.role == 'Teacher' and request.user.id != teacher_id:
             return Response({'error': 'Access denied.'}, status=403)
 
-        sections = Section.objects.filter(teacher_id=teacher_id)
+        sections = Section.objects.filter(teacher_id=teacher_id, status='active')
         section_ids = list(sections.values_list('id', flat=True))
         enrollments = Enrollment.objects.filter(section_id__in=section_ids)
         assessments = Assessment.objects.filter(section_id__in=section_ids)
         assessment_ids = list(assessments.values_list('id', flat=True))
         scores = Score.objects.filter(assessment_id__in=assessment_ids)
 
-        total_perc = 0
+        total_grade = 0
         count = 0
-        for s in scores:
-            a = assessments.filter(id=s.assessment_id).first()
-            if a:
-                total_perc += (s.score / a.perfect_score) * 100
-                count += 1
-
         student_stats = []
+        
+        # Pre-fetch sections into a dict for fast lookup
+        section_map = {s.id: s for s in sections}
+
         for e in enrollments:
-            user = e.student
-            section = sections.filter(id=e.section_id).first()
-            my_scores = scores.filter(student_id=e.student_id, assessment__section_id=e.section_id)
-
-            s_total = 0
-            s_count = 0
-            for s in my_scores:
-                a = assessments.filter(id=s.assessment_id).first()
-                if a:
-                    s_total += (s.score / a.perfect_score) * 100
-                    s_count += 1
-
+            info = compute_section_grade(e.student_id, e.section_id)
+            grade = info['sectionGrade']
+            
+            total_grade += grade
+            count += 1
+            
+            section = section_map.get(e.section_id)
             student_stats.append({
-                'name': user.get_full_name(),
-                'average': round(s_total / s_count) if s_count > 0 else 0,
+                'name': e.student.get_full_name(),
+                'average': grade,
+                'equivalentGrade': info['equivalentGrade'],
                 'section_id': e.section_id,
                 'section_name': section.code_name if section else '',
             })
@@ -496,10 +571,15 @@ class TeacherAnalyticsView(APIView):
         student_stats.sort(key=lambda x: x['average'], reverse=True)
         unique_students = set(enrollments.values_list('student_id', flat=True))
 
+        avg_perf = round(total_grade / count) if count > 0 else 0
+        from api.gwa import percentage_to_grade_point
+        avg_perf_equiv = percentage_to_grade_point(avg_perf)
+
         return Response({
             'totalStudents': len(unique_students),
             'totalClasses': sections.count(),
-            'averagePerformance': round(total_perc / count) if count > 0 else 0,
+            'averagePerformance': avg_perf,
+            'averagePerformanceEquiv': avg_perf_equiv,
             'topStudents': student_stats[:50],
             'sections': [{'id': s.id, 'name': s.code_name} for s in sections],
         })

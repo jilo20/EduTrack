@@ -43,6 +43,7 @@ const TeacherDashboard = () => {
     const [openGradingProgress, setOpenGradingProgress] = useState(false);
     const [openAtRisk, setOpenAtRisk] = useState(false);
     const [selectedHonorRollSection, setSelectedHonorRollSection] = useState('all');
+    const [selectedMasterySection, setSelectedMasterySection] = useState('all');
 
     useEffect(() => {
         if (!user) return;
@@ -59,7 +60,8 @@ const TeacherDashboard = () => {
                 }
                 
                 // New rich analytics
-                const res2 = await fetch(`/api/analytics/teacher/${user.id}`, {
+                const masteryParam = selectedMasterySection !== 'all' ? `?sectionId=${selectedMasterySection}` : '';
+                const res2 = await fetch(`/api/analytics/teacher/${user.id}${masteryParam}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res2.ok) {
@@ -73,14 +75,14 @@ const TeacherDashboard = () => {
             } catch (err) { console.error('Dashboard data fetch failed', err); }
         };
         fetchDashboardData();
-    }, [user?.id]);
+    }, [user?.id, selectedMasterySection]);
 
     if (!user || !analytics) return <LinearProgress />;
 
     const stats = [
         { label: 'Total Students', value: analytics?.totalStudents || 0, icon: <PeopleIcon />, color: '#2563EB' },
         { label: 'Active Classes', value: analytics?.totalClasses || 0, icon: <SchoolIcon />, color: '#7C3AED' },
-        { label: 'Avg. Performance', value: `${analytics?.averagePerformance || 0}%`, icon: <TrendingUpIcon />, color: '#059669' },
+        { label: 'Avg. Performance', value: analytics?.averagePerformanceEquiv || '5.00', icon: <TrendingUpIcon />, color: '#059669' },
         { label: 'Attendance Rate', value: `${attendanceStats?.percentage || 0}%`, icon: <CheckCircleIcon />, color: '#F59E0B' },
     ];
 
@@ -139,7 +141,7 @@ const TeacherDashboard = () => {
                                     </Box>
                                     <Box>
                                         <Typography variant="h6" fontWeight={800} color="#991B1B">Action Required</Typography>
-                                        <Typography variant="caption" color="#B91C1C" fontWeight={700}>The following students are performing below the 75% passing threshold</Typography>
+                                        <Typography variant="caption" color="#B91C1C" fontWeight={700}>The following students are performing below the institutional or class-specific passing thresholds</Typography>
                                     </Box>
                                 </Stack>
                                 <Button size="small" variant="contained" color="error" onClick={() => setOpenAtRisk(true)} sx={{ fontWeight: 800, borderRadius: 2 }}>
@@ -158,7 +160,8 @@ const TeacherDashboard = () => {
                                                     <Typography variant="caption" color="text.secondary" display="block">{s?.section || 'General Class'}</Typography>
                                                 </Box>
                                                 <Box sx={{ flexGrow: 1, textAlign: 'right' }}>
-                                                    <Typography variant="h6" fontWeight={900} color="#EF4444">{s?.grade || 0}%</Typography>
+                                                    <Typography variant="h6" fontWeight={900} color="#EF4444">{s?.equivalentGrade || '5.00'}</Typography>
+                                                    <Typography variant="caption" color="#EF4444" fontWeight={700}>({s?.grade || 0}%)</Typography>
                                                 </Box>
                                             </Stack>
                                         </CardContent>
@@ -207,7 +210,7 @@ const TeacherDashboard = () => {
                                         barSize={24}
                                     >
                                         {performanceData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.average >= 75 ? '#2563EB' : '#EF4444'} />
+                                            <Cell key={`cell-${index}`} fill={entry.average >= (entry.passingGrade || 60) ? '#2563EB' : '#EF4444'} />
                                         ))}
                                     </Bar>
                                 </BarChart>
@@ -216,11 +219,11 @@ const TeacherDashboard = () => {
                         <Stack direction="row" spacing={2} sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                             <Stack direction="row" spacing={1} alignItems="center">
                                 <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#2563EB' }} />
-                                <Typography variant="caption" fontWeight={700}>On Track (≥75%)</Typography>
+                                <Typography variant="caption" fontWeight={700}>On Track (≥Passing)</Typography>
                             </Stack>
                             <Stack direction="row" spacing={1} alignItems="center">
                                 <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#EF4444' }} />
-                                <Typography variant="caption" fontWeight={700}>Needs Support ({'<' }75%)</Typography>
+                                <Typography variant="caption" fontWeight={700}>Needs Support ({'<'}Passing)</Typography>
                             </Stack>
                         </Stack>
                     </Paper>
@@ -229,10 +232,24 @@ const TeacherDashboard = () => {
                 {/* Class Mastery Radar Chart */}
                 <Grid size={{ xs: 12, md: 4 }}>
                     <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 4, height: 400, display: 'flex', flexDirection: 'column' }}>
-                        <Box sx={{ mb: 2 }}>
-                            <Typography variant="h6" fontWeight={800}>Class Mastery</Typography>
-                            <Typography variant="caption" color="text.secondary" fontWeight={700}>Overall strength per assessment category</Typography>
-                        </Box>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                            <Box>
+                                <Typography variant="h6" fontWeight={800}>Class Mastery</Typography>
+                                <Typography variant="caption" color="text.secondary" fontWeight={700}>Overall strength per assessment category</Typography>
+                            </Box>
+                            <FormControl size="small" sx={{ minWidth: 100 }}>
+                                <Select
+                                    value={selectedMasterySection}
+                                    onChange={(e) => setSelectedMasterySection(e.target.value)}
+                                    sx={{ borderRadius: 2, fontWeight: 700, fontSize: '0.7rem', height: 28 }}
+                                >
+                                    <MenuItem value="all" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>All</MenuItem>
+                                    {(analytics.sections || []).map(s => (
+                                        <MenuItem key={s.id} value={s.id} sx={{ fontWeight: 700, fontSize: '0.75rem' }}>{s.name}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Stack>
                         <Box sx={{ flexGrow: 1, width: '100%', mt: -2 }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={categoryData}>
@@ -323,9 +340,9 @@ const TeacherDashboard = () => {
                                         </ListItemAvatar>
                                         <ListItemText
                                             primary={<Typography fontWeight={800}>{student.name}</Typography>}
-                                            secondary={`${student.section_name || 'General'} • ${student.average}%`}
+                                            secondary={`${student.section_name || 'General'} • Grade: ${student.equivalentGrade}`}
                                         />
-                                        <Chip label={`${student.average}%`} size="small" color={student.average > 90 ? "success" : "primary"}
+                                        <Chip label={student.equivalentGrade} size="small" color={student.average > 90 ? "success" : "primary"}
                                             variant={idx === 0 ? "filled" : "outlined"} sx={{ fontWeight: 800 }} />
                                     </ListItem>
                                 ))}
@@ -358,8 +375,8 @@ const TeacherDashboard = () => {
                                     </ListItemAvatar>
                                     <ListItemText primary={<Typography fontWeight={800}>{student.name}</Typography>} secondary={`${student.section_name} • Performance Grade`} />
                                     <Stack alignItems="flex-end">
-                                        <Typography variant="h6" fontWeight={900} color="primary">{student.average}%</Typography>
-                                        <Chip label="Outstanding" size="small" color="success" sx={{ fontSize: '0.65rem', height: 18, fontWeight: 800 }} />
+                                        <Typography variant="h6" fontWeight={900} color="primary">{student.equivalentGrade}</Typography>
+                                        <Chip label={`${student.average}%`} size="small" color="success" sx={{ fontSize: '0.65rem', height: 18, fontWeight: 800 }} />
                                     </Stack>
                                 </ListItem>
                             ))}
@@ -429,8 +446,8 @@ const TeacherDashboard = () => {
                                     secondary={`Enrolled in ${s.section || 'Class'}`}
                                 />
                                 <Box sx={{ textAlign: 'right' }}>
-                                    <Typography variant="h6" fontWeight={900} color="error">{s.grade}%</Typography>
-                                    <Typography variant="caption" fontWeight={700} color="error">CRITICAL</Typography>
+                                    <Typography variant="h6" fontWeight={900} color="error">{s.equivalentGrade}</Typography>
+                                    <Typography variant="caption" fontWeight={700} color="error">CRITICAL ({s.grade}%)</Typography>
                                 </Box>
                             </ListItem>
                         ))}

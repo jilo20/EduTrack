@@ -67,7 +67,7 @@ const AdminDashboard = () => {
         { label: 'Total Students', value: stats?.totalStudents || 0, icon: <PeopleIcon />, color: '#2563EB' },
         { label: 'Faculty Members', value: stats?.totalTeachers || 0, icon: <SchoolIcon />, color: '#7C3AED' },
         { label: 'Active Classes', value: stats?.totalSections || 0, icon: <SchoolIcon />, color: '#059669' },
-        { label: 'System Avg GWA', value: `${stats?.systemAvgGWA || 0}%`, icon: <TrendingUpIcon />, color: '#F59E0B' },
+        { label: 'System Avg GWA', value: stats?.systemAvgEquiv || '5.00', icon: <TrendingUpIcon />, color: '#F59E0B' },
     ];
 
 

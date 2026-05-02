@@ -67,9 +67,9 @@ const StudentDashboard = () => {
                                 <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: `${gradeColor}10`, color: gradeColor }}><TrendingUpIcon /></Box>
                                 <Typography variant="h6" fontWeight={700}>General Weighted Average</Typography>
                             </Stack>
-                            <Typography variant="h2" fontWeight={800} sx={{ color: gradeColor }}>{analytics?.gwa || 0}%</Typography>
+                            <Typography variant="h2" fontWeight={800} sx={{ color: gradeColor }}>{analytics?.equivalentGrade || 'N/A'}</Typography>
                             <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-                                <Typography variant="h5" fontWeight={700}>{analytics?.equivalentGrade || 'N/A'}</Typography>
+                                <Typography variant="h5" fontWeight={700}>{analytics?.gwa || 0}%</Typography>
                                 <Typography variant="caption" color="text.secondary" fontWeight={600}>({(analytics?.gwa || 0) >= 75 ? 'PASSING' : 'FAILING'})</Typography>
                             </Stack>
 

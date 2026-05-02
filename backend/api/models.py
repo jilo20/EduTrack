@@ -71,10 +71,11 @@ class Enrollment(models.Model):
 
 class Assessment(models.Model):
     TYPE_CHOICES = [
-        ('Quiz', 'Quiz'),
-        ('Project', 'Project'),
-        ('Assignment', 'Assignment'),
-        ('Exam', 'Module / Final Exam'),
+        ('Written Works', 'Written Works'),
+        ('Performance Tasks', 'Performance Tasks'),
+        ('Major Exams', 'Major Examinations'),
+        ('Projects', 'Projects & Portfolio'),
+        ('Other', 'Other Assessments'),
     ]
 
     section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='assessments')

@@ -48,7 +48,7 @@ class StudentDashboardView(APIView):
                 'id': user.id, 'name': user.get_full_name(), 'email': user.email,
                 'role': user.role, 'id_number': user.id_number,
             },
-            'attendance_percentage': round((present_count / attendance.count()) * 100) if attendance.count() > 0 else 0,
+            'attendance_percentage': round((present_count / attendance.exclude(status='No Class').count()) * 100) if attendance.exclude(status='No Class').count() > 0 else 0,
             'recent_attendance': [
                 {'id': a.id, 'date': str(a.date), 'status': a.status, 'section_id': a.section_id, 'remarks': a.remarks}
                 for a in attendance.order_by('-date')[:10]
@@ -96,7 +96,7 @@ class StudentAttendanceView(APIView):
         student_id = int(student_id)
         records = Attendance.objects.filter(student_id=student_id).order_by('-date')
         present = records.filter(status='Present').count()
-        total = records.count()
+        total = records.exclude(status='No Class').count()
         return Response({
             'records': [
                 {'id': r.id, 'date': str(r.date), 'status': r.status,
@@ -107,7 +107,7 @@ class StudentAttendanceView(APIView):
             'presentCount': present,
             'absentCount': records.filter(status='Absent').count(),
             'lateCount': records.filter(status='Late').count(),
-            'percentage': round((present / total) * 100) if total > 0 else 0,
+            'percentage': round((present / records.exclude(status='No Class').count()) * 100) if records.exclude(status='No Class').count() > 0 else 0,
         })
 
 
@@ -142,7 +142,7 @@ class StudentDashboardSummaryView(APIView):
             'gwa': gwa_data['gwa'],
             'equivalentGrade': gwa_data['equivalentGrade'],
             'gradeDescription': gwa_data['gradeDescription'],
-            'attendancePercentage': round((present_count / attendance.count()) * 100) if attendance.count() > 0 else 0,
+            'attendancePercentage': round((present_count / attendance.exclude(status='No Class').count()) * 100) if attendance.exclude(status='No Class').count() > 0 else 0,
             'totalAssessments': total_assessments,
             'gradedAssessments': graded,
             'pendingAssessments': total_assessments - graded,

@@ -35,10 +35,9 @@ class VerifyIDView(APIView):
 
     def post(self, request):
         id_number = request.data.get('id_number')
-        role = request.data.get('role')
         try:
-            rid = RegisteredID.objects.get(id_number=id_number, role=role, is_used=False)
-            return Response({'valid': True, 'message': 'ID is available'})
+            rid = RegisteredID.objects.get(id_number=id_number, is_used=False)
+            return Response({'valid': True, 'message': 'ID is available', 'role': rid.role})
         except RegisteredID.DoesNotExist:
             return Response({'valid': False, 'message': 'ID not found or already used'}, status=status.HTTP_400_BAD_REQUEST)
 
