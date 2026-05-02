@@ -1,0 +1,51 @@
+-Teacher's Dashboard 
+
+Features Present: 
+Total students, class Average,Avg Attendance and Need Attention viewer
+
+Assignment section:
+Add Assignment
+Assignment Title
+Submitted (amount of students who submitted)
+Due date of the Assignment: Calendar feature
+Total amount of students
+
+Student List:
+Add Student
+Sortation: All and Sortation based on Needed Attention
+New Student: 
+Full Name
+Grade: American A-F
+Score
+Attendance
+
+Side Bar:
+Dashboard - Functioning
+Students, Assignment, Attendance and Settings (not functional)
+
+
+Needed change
+
+Dashboard:
+Weekly Schedule: where you can see the courses and their appropriate /individual schedules
+
+Add Course ft: amount of courses active
+Add classes: Amount of classes that are needed to be attended
+Add Student #: The number of students teacher have under them
+Add: Notifications
+
+Calendar Feature:
+Upcoming events feature:
+
+Change American Grading to PH university Grading 3.0 minimum passing to 1.0 Highest
+
+Side bar:
+Dashboard
+Courses
+Exams
+Assignments/Activities/Homework
+Settings
+
+
+
+
