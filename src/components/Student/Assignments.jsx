@@ -13,6 +13,7 @@ const Assignments = () => {
     const [user, setUser] = useState(null);
     const [filter, setFilter] = useState('All Status');
     const [typeFilter, setTypeFilter] = useState('All Types');
+    const [classFilter, setClassFilter] = useState('All Classes');
     const [assignments, setAssignments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -58,16 +59,22 @@ const Assignments = () => {
         };
         fetchAssignments();
     }, [user?.id]);
+    
+    const uniqueClasses = useMemo(() => {
+        const classes = [...new Set(assignments.map(a => a.subject))];
+        return ['All Classes', ...classes];
+    }, [assignments]);
 
 
     const filteredAssignments = useMemo(() => {
         return assignments.filter(a => {
             const matchesStatus = filter === 'All Status' || a.status === filter;
             const matchesType = typeFilter === 'All Types' || a.type === typeFilter;
+            const matchesClass = classFilter === 'All Classes' || a.subject === classFilter;
             const matchesSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase());
-            return matchesStatus && matchesType && matchesSearch;
+            return matchesStatus && matchesType && matchesClass && matchesSearch;
         });
-    }, [assignments, filter, typeFilter, searchQuery]);
+    }, [assignments, filter, typeFilter, classFilter, searchQuery]);
 
     if (loading) {
         return (
@@ -143,21 +150,39 @@ const Assignments = () => {
             </Grid>
 
             <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems="center" spacing={2} sx={{ my: 3 }}>
-                <Stack spacing={2} direction={{ xs: 'column', sm: 'row' }} sx={{ width: '100%' }}>
-                    <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
-                        {['All Status', 'Pending', 'Graded'].map(item => (
-                            <Chip key={item} label={item} onClick={() => setFilter(item)}
-                                color={filter === item ? 'primary' : 'default'} variant={filter === item ? 'filled' : 'outlined'}
-                                sx={{ fontWeight: 700, borderRadius: 2 }} />
-                        ))}
+                <Stack spacing={2} direction="column" sx={{ width: '100%' }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ minWidth: 60 }}>CLASS:</Typography>
+                        <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+                            {uniqueClasses.map(item => (
+                                <Chip key={item} label={item} onClick={() => setClassFilter(item)}
+                                    color={classFilter === item ? 'primary' : 'default'} variant={classFilter === item ? 'filled' : 'outlined'}
+                                    sx={{ fontWeight: 700, borderRadius: 2 }} />
+                            ))}
+                        </Stack>
                     </Stack>
-                    <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
-                    <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
-                        {['All Types', 'Assignment', 'Quiz', 'Exam', 'Project'].map(item => (
-                            <Chip key={item} label={item} onClick={() => setTypeFilter(item)}
-                                color={typeFilter === item ? 'secondary' : 'default'} variant={typeFilter === item ? 'filled' : 'outlined'}
-                                sx={{ fontWeight: 700, borderRadius: 2 }} />
-                        ))}
+                    <Stack direction="row" spacing={2} direction={{ xs: 'column', sm: 'row' }}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ minWidth: 60 }}>STATUS:</Typography>
+                            <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+                                {['All Status', 'Pending', 'Graded'].map(item => (
+                                    <Chip key={item} label={item} onClick={() => setFilter(item)}
+                                        color={filter === item ? 'primary' : 'default'} variant={filter === item ? 'filled' : 'outlined'}
+                                        sx={{ fontWeight: 700, borderRadius: 2 }} />
+                                ))}
+                            </Stack>
+                        </Stack>
+                        <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ minWidth: 60 }}>TYPE:</Typography>
+                            <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+                                {['All Types', 'Assignment', 'Quiz', 'Exam', 'Project'].map(item => (
+                                    <Chip key={item} label={item} onClick={() => setTypeFilter(item)}
+                                        color={typeFilter === item ? 'secondary' : 'default'} variant={typeFilter === item ? 'filled' : 'outlined'}
+                                        sx={{ fontWeight: 700, borderRadius: 2 }} />
+                                ))}
+                            </Stack>
+                        </Stack>
                     </Stack>
                 </Stack>
                 <TextField size="small" placeholder="Search assessments..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}

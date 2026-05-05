@@ -22,6 +22,7 @@ from api.views import (
     StatusView, UserNotificationsView, MarkNotificationReadView,
     MarkAllNotificationsReadView, ClearAllNotificationsView,
     AnnouncementListView, AnnouncementCreateView,
+    ChatbotView,
 )
 
 urlpatterns = [
@@ -76,5 +77,6 @@ urlpatterns = [
     path('notifications/clear-all/<int:user_id>', ClearAllNotificationsView.as_view()),
     path('announcements', AnnouncementListView.as_view()),
     path('announcements/create', AnnouncementCreateView.as_view()),
+    path('chatbot', ChatbotView.as_view()),
 ]
 

@@ -16,6 +16,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+import Chatbot from './Chatbot';
 
 const drawerWidth = 250;
 
@@ -284,6 +285,9 @@ const DashboardLayout = () => {
                 <Toolbar />
                 <Outlet />
             </Box>
+
+            {/* Chatbot Widget */}
+            <Chatbot user={user} />
 
             {/* Logout Confirmation Dialog */}
             <Dialog open={logoutOpen} onClose={() => setLogoutOpen(false)} maxWidth="xs" fullWidth>
