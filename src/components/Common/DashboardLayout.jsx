@@ -93,6 +93,7 @@ const DashboardLayout = () => {
 
     const adminMenu = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+        { text: 'Class Management', icon: <SchoolIcon />, path: '/dashboard/admin/classes' },
         { text: 'User Management', icon: <PeopleIcon />, path: '/dashboard/users' },
         { text: 'Broadcast Center', icon: <CampaignIcon />, path: '/dashboard/broadcast' },
         { text: 'Announcements', icon: <CampaignIcon />, path: '/dashboard/announcements' },

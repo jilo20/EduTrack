@@ -10,24 +10,9 @@ import SaveIcon from '@mui/icons-material/Save';
 import EditIcon from '@mui/icons-material/Edit';
 import LockIcon from '@mui/icons-material/Lock';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { percentageToGradePoint } from '../../utils/grading';
 
 const GradingHub = () => {
-    const percentageToGradePoint = (percentage, passingGrade = 60) => {
-        if (percentage < passingGrade) return 5.00;
-        if (percentage >= 100) return 1.00;
-        const range = 100 - passingGrade;
-        if (range <= 0) return 3.00;
-        const step = range / 8;
-        if (percentage >= 100 - step * 0.5) return 1.00;
-        if (percentage >= 100 - step * 1.5) return 1.25;
-        if (percentage >= 100 - step * 2.5) return 1.50;
-        if (percentage >= 100 - step * 3.5) return 1.75;
-        if (percentage >= 100 - step * 4.5) return 2.00;
-        if (percentage >= 100 - step * 5.5) return 2.25;
-        if (percentage >= 100 - step * 6.5) return 2.50;
-        if (percentage >= 100 - step * 7.5) return 2.75;
-        return 3.00;
-    };
 
     const teacher = (() => {
         try {
@@ -51,6 +36,7 @@ const GradingHub = () => {
     const [changeReason, setChangeReason] = useState('');
     const [pendingEdit, setPendingEdit] = useState(null); // { studentId }
     const [currentPassingGrade, setCurrentPassingGrade] = useState(60);
+    const [currentWeights, setCurrentWeights] = useState({});
 
     useEffect(() => {
         const fetchClasses = async () => {
@@ -83,6 +69,13 @@ const GradingHub = () => {
                     setAssessments(data.assessments || []);
                     setDBScores(data.existingScores || []);
                     setCurrentPassingGrade(data.passingGrade || 60);
+                    setCurrentWeights(data.weights || {});
+                    
+                    const weightCats = Object.keys(data.weights || {});
+                    if (weightCats.length > 0) {
+                        setNewAssessment(prev => ({ ...prev, type: weightCats[0] }));
+                    }
+
                     if (data?.assessments?.length > 0) setSelectedAssessmentId(data.assessments[0].id);
                     else setSelectedAssessmentId('');
                 }
@@ -323,9 +316,15 @@ const GradingHub = () => {
                         <FormControl fullWidth>
                             <InputLabel>Category</InputLabel>
                             <Select value={newAssessment.type} label="Category" onChange={(e) => setNewAssessment({ ...newAssessment, type: e.target.value })}>
-                                {(activeClass?.settings?.assessment_categories || ['Written Works', 'Performance Tasks', 'Major Exams', 'Projects', 'Other']).map(cat => (
-                                    <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-                                ))}
+                                {Object.keys(currentWeights).length > 0 ? (
+                                    Object.keys(currentWeights).map(cat => (
+                                        <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                                    ))
+                                ) : (
+                                    ['Written Works', 'Performance Tasks', 'Major Exams', 'Projects', 'Other'].map(cat => (
+                                        <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                                    ))
+                                )}
                             </Select>
                         </FormControl>
                         <TextField fullWidth type="number" label="Perfect Score" value={newAssessment.perfectScore} onChange={(e) => setNewAssessment({ ...newAssessment, perfectScore: e.target.value })} />

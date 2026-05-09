@@ -15,6 +15,7 @@ import StudentManagement from './components/Admin/StudentManagement';
 import AuditLogs from './components/Admin/AuditLogs';
 import InviteCenter from './components/Admin/InviteCenter';
 import UserManager from './components/Admin/UserManager';
+import AdminClasses from './components/Admin/AdminClasses';
 
 // Teacher Components
 import TeacherDashboard from './components/Teacher/TeacherDashboard';
@@ -72,6 +73,7 @@ function App() {
                         <Route path="/dashboard" element={<DashboardLayout />}>
                             <Route index element={<DashboardRouter />} />
                             <Route path="users" element={<UserManager />} />
+                            <Route path="admin/classes" element={<AdminClasses />} />
                             <Route path="broadcast" element={<BroadcastCenter />} />
                             <Route path="audit-logs" element={<AuditLogs />} />
                             <Route path="classes" element={<TeacherClasses />} />

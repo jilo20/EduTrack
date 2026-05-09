@@ -121,7 +121,8 @@ class ClassRosterView(APIView):
             'students': students, 
             'assessments': assessments, 
             'existingScores': existing_scores,
-            'passingGrade': section.settings.get('passing_grade', 60)
+            'passingGrade': section.settings.get('passing_grade', 60),
+            'weights': section.settings.get('weights', {})
         })
 
 
@@ -163,7 +164,7 @@ class EnrollStudentsView(APIView):
 
 
 class ClassAnnouncementView(APIView):
-    permission_classes = [IsTeacher]
+    permission_classes = [IsTeacherOrAdmin]
 
     def post(self, request):
         section_id = int(request.data.get('sectionId', 0))
@@ -243,7 +244,7 @@ class EndSemesterView(APIView):
 
         grades = [s['grade'] for s in students_data if s['grade'] > 0]
         class_avg = round(sum(grades) / len(grades)) if grades else 0
-        passing_grade = section.settings.get('passing_grade', 75)
+        passing_grade = section.settings.get('passing_grade', 60)
         
         from api.gwa import percentage_to_grade_point
         class_avg_equiv = percentage_to_grade_point(class_avg, passing_grade)
@@ -323,7 +324,7 @@ class ClassReportView(APIView):
         students_data.sort(key=lambda x: x['grade'], reverse=True)
         grades = [s['grade'] for s in students_data if s['grade'] > 0]
         class_avg = round(sum(grades) / len(grades)) if grades else 0
-        passing_grade = section.settings.get('passing_grade', 75)
+        passing_grade = section.settings.get('passing_grade', 60)
         
         from api.gwa import percentage_to_grade_point
         class_avg_equiv = percentage_to_grade_point(class_avg, passing_grade)
@@ -406,7 +407,7 @@ class StudentSectionDetailView(APIView):
 
 
 class AssessmentCreateView(APIView):
-    permission_classes = [IsTeacher]
+    permission_classes = [IsTeacherOrAdmin]
 
     def post(self, request):
         section_id = request.data.get('sectionId')
@@ -492,7 +493,7 @@ class ClassAttendanceView(APIView):
 
 
 class MarkAttendanceView(APIView):
-    permission_classes = [IsTeacher]
+    permission_classes = [IsTeacherOrAdmin]
 
     def post(self, request):
         section_id = int(request.data.get('sectionId', 0))

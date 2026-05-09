@@ -5,7 +5,7 @@ from api.views import (
     # Admin
     AdminStatsView, InviteCreateView, InviteListView,
     AdminUserCreateView, AdminUserUpdateView, AdminUserDeleteView,
-    AuditLogListView,
+    AuditLogListView, AdminSectionsView,
     # Teacher
     TeacherClassesView, ClassCreateView, ClassWeightsView,
     ClassRosterView, EnrollStudentsView, ClassAnnouncementView,
@@ -39,6 +39,7 @@ urlpatterns = [
     path('admin/users/<int:user_id>', AdminUserUpdateView.as_view()),
     path('admin/users/<int:user_id>/delete', AdminUserDeleteView.as_view()),
     path('audit-logs', AuditLogListView.as_view()),
+    path('admin/sections', AdminSectionsView.as_view()),
 
     # ── Teacher ───────────────────────────────────────
     path('teacher/<int:teacher_id>/classes', TeacherClassesView.as_view()),
