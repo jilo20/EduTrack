@@ -1,0 +1,38 @@
+WBS,Task Name,Baseline Start,Baseline End,Days,Predecessors,,Actual Start,Actual End
+1.00,Phase 1: System Design & Planning,3/6/2026,3/17/2026,12.00,,,3/6/2026,3/18/2026
+1.01,ERD & Database Schema Design,3/6/2026,3/8/2026,3.00,None,,3/6/2026,3/8/2026
+1.02,High-Level Design (HLD) Document,3/9/2026,3/11/2026,3.00,1.01,,3/9/2026,3/12/2026
+1.03,UI Wireframes & Screen Flow Planning,3/12/2026,3/14/2026,3.00,1.02,,3/13/2026,3/15/2026
+1.04,Tech Stack Finalization (React + Django),3/15/2026,3/17/2026,3.00,1.03,,3/16/2026,3/18/2026
+,,,,,,,,
+2.00,Phase 2: Backend Core Architecture,3/18/2026,4/4/2026,18.00,,,3/19/2026,4/7/2026
+2.01,Django Project Setup & Environment Config,3/18/2026,3/19/2026,2.00,1.04,,3/19/2026,3/20/2026
+2.02,User Model & Authentication API (Login/Register),3/20/2026,3/23/2026,4.00,2.01,,3/21/2026,3/24/2026
+2.03,ID Verification & Role-Based Access Control,3/24/2026,3/25/2026,2.00,2.02,,3/25/2026,3/26/2026
+2.04,Admin CRUD API (Users/Sections/Invites),3/26/2026,3/28/2026,3.00,2.03,,3/27/2026,3/29/2026
+2.05,Teacher API (Classes/Assessments/Scores),3/29/2026,4/1/2026,4.00,2.04,,3/30/2026,4/2/2026
+2.06,Student API (Dashboard/Performance/GWA),4/2/2026,4/3/2026,2.00,2.05,,4/3/2026,4/5/2026
+2.07,Audit Log & Notification System,4/4/2026,4/4/2026,1.00,2.06,,4/6/2026,4/7/2026
+,,,,,,,,
+3.00,Phase 3: Frontend Development & Integration,4/5/2026,4/22/2026,18.00,,,4/8/2026,4/25/2026
+3.01,React Project Setup & Routing (Vite),4/5/2026,4/5/2026,1.00,2.02,,4/8/2026,4/8/2026
+3.02,Login & Registration Screens,4/6/2026,4/7/2026,2.00,2.03,,4/9/2026,4/10/2026
+3.03,Admin Dashboard & User Management UI,4/8/2026,4/10/2026,3.00,2.04,,4/11/2026,4/13/2026
+3.04,Admin Invite Center & Audit Logs UI,4/11/2026,4/12/2026,2.00,3.03,,4/14/2026,4/15/2026
+3.05,Teacher Class Management & Enrollment UI,4/13/2026,4/15/2026,3.00,2.05,,4/16/2026,4/18/2026
+3.06,Grading Hub UI (Weights/Assessments/Scores),4/16/2026,4/18/2026,3.00,3.05,,4/19/2026,4/21/2026
+3.07,Attendance Manager UI,4/19/2026,4/20/2026,2.00,3.06,,4/22/2026,4/23/2026
+3.08,Student Dashboard & Performance View,4/21/2026,4/22/2026,2.00,2.06,,4/24/2026,4/25/2026
+,,,,,,,,
+4.00,Phase 4: Analytics & Advanced Features,4/23/2026,4/30/2026,8.00,,,4/26/2026,5/3/2026
+4.01,GWA Calculation Engine & Grade Logic,4/23/2026,4/24/2026,2.00,3.06,,4/26/2026,4/27/2026
+4.02,PDF Report Generation (jsPDF),4/25/2026,4/26/2026,2.00,4.01,,4/28/2026,4/29/2026
+4.03,Rich Analytics Dashboards (Recharts),4/27/2026,4/28/2026,2.00,4.02,,4/30/2026,5/1/2026
+4.04,Announcements & Notification Center,4/29/2026,4/29/2026,1.00,4.03,,5/2/2026,5/2/2026
+4.05,AI Chatbot Integration,4/30/2026,4/30/2026,1.00,4.04,,5/3/2026,5/3/2026
+,,,,,,,,
+5.00,Phase 5: Finalization & Deployment,5/1/2026,5/7/2026,7.00,,,5/4/2026,5/7/2026
+5.01,End Semester Lock & Data Finalization,5/1/2026,5/2/2026,2.00,4.05,,5/4/2026,5/4/2026
+5.02,Bug Fixing & UI Polishing,5/3/2026,5/4/2026,2.00,"5.01, 3.08",,5/5/2026,5/5/2026
+5.03,User Acceptance Testing (UAT),5/5/2026,5/6/2026,2.00,5.02,,5/6/2026,5/6/2026
+5.04,Final Database Cleanup & Deployment,5/7/2026,5/7/2026,1.00,5.03,,5/7/2026,5/7/2026

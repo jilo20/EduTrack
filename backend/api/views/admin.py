@@ -205,3 +205,23 @@ class AuditLogListView(APIView):
             'details': log.details, **log.extra_data,
         } for log in logs]
         return Response(data)
+
+class AdminSectionsView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        sections = Section.objects.all().order_by('code_name')
+        data = [{
+            'id': s.id, 
+            'name': s.course_program, 
+            'section': s.code_name,
+            'teacher': s.teacher.get_full_name(),
+            'teacherId': s.teacher_id,
+            'schedule': s.schedule or 'TBA', 
+            'status': s.status or 'active',
+            'ended_at': s.ended_at.isoformat() if s.ended_at else None,
+            'studentCount': Enrollment.objects.filter(section=s).count(),
+            'weights': s.settings.get('weights') if s.settings else None,
+            'passingGrade': s.settings.get('passing_grade', 60),
+        } for s in sections]
+        return Response(data)

@@ -26,6 +26,8 @@ class StudentDashboardView(APIView):
         scores_qs = Score.objects.filter(student_id=student_id)
         attendance = Attendance.objects.filter(student_id=student_id)
         present_count = attendance.filter(status='Present').count()
+        late_count = attendance.filter(status='Late').count()
+        total_att = attendance.exclude(status='No Class').count()
 
         gwa_data = compute_student_gwa(student_id)
 
@@ -48,7 +50,7 @@ class StudentDashboardView(APIView):
                 'id': user.id, 'name': user.get_full_name(), 'email': user.email,
                 'role': user.role, 'id_number': user.id_number,
             },
-            'attendance_percentage': round((present_count / attendance.exclude(status='No Class').count()) * 100) if attendance.exclude(status='No Class').count() > 0 else 0,
+            'attendance_percentage': round(((present_count + late_count * 0.5) / total_att) * 100) if total_att > 0 else 0,
             'recent_attendance': [
                 {'id': a.id, 'date': str(a.date), 'status': a.status, 'section_id': a.section_id, 'remarks': a.remarks}
                 for a in attendance.order_by('-date')[:10]
@@ -78,6 +80,7 @@ class StudentPerformanceView(APIView):
                 'perfectScore': a.perfect_score,
                 'achievedScore': score_entry.score if score_entry else None,
                 'sectionName': section.course_program if section else 'Unknown',
+                'sectionId': a.section_id,
             })
         return Response(data)
 
@@ -96,6 +99,7 @@ class StudentAttendanceView(APIView):
         student_id = int(student_id)
         records = Attendance.objects.filter(student_id=student_id).order_by('-date')
         present = records.filter(status='Present').count()
+        late = records.filter(status='Late').count()
         total = records.exclude(status='No Class').count()
         return Response({
             'records': [
@@ -106,8 +110,8 @@ class StudentAttendanceView(APIView):
             'total': total,
             'presentCount': present,
             'absentCount': records.filter(status='Absent').count(),
-            'lateCount': records.filter(status='Late').count(),
-            'percentage': round((present / records.exclude(status='No Class').count()) * 100) if records.exclude(status='No Class').count() > 0 else 0,
+            'lateCount': late,
+            'percentage': round(((present + late * 0.5) / total) * 100) if total > 0 else 0,
         })
 
 
@@ -133,6 +137,7 @@ class StudentDashboardSummaryView(APIView):
         gwa_data = compute_student_gwa(student_id)
         attendance = Attendance.objects.filter(student_id=student_id)
         present_count = attendance.filter(status='Present').count()
+        late_count = attendance.filter(status='Late').count()
         enrollments = Enrollment.objects.filter(student_id=student_id)
         section_ids = list(enrollments.values_list('section_id', flat=True))
         total_assessments = Assessment.objects.filter(section_id__in=section_ids).count()
@@ -142,7 +147,7 @@ class StudentDashboardSummaryView(APIView):
             'gwa': gwa_data['gwa'],
             'equivalentGrade': gwa_data['equivalentGrade'],
             'gradeDescription': gwa_data['gradeDescription'],
-            'attendancePercentage': round((present_count / attendance.exclude(status='No Class').count()) * 100) if attendance.exclude(status='No Class').count() > 0 else 0,
+            'attendancePercentage': round(((present_count + late_count * 0.5) / attendance.exclude(status='No Class').count()) * 100) if attendance.exclude(status='No Class').count() > 0 else 0,
             'totalAssessments': total_assessments,
             'gradedAssessments': graded,
             'pendingAssessments': total_assessments - graded,

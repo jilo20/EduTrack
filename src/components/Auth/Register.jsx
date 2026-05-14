@@ -16,7 +16,8 @@ const Register = () => {
     
     // Step 2 State
     const [formData, setFormData] = useState({
-        name: '',
+        firstName: '',
+        lastName: '',
         email: '',
         password: '',
         confirmPassword: ''
@@ -66,7 +67,7 @@ const Register = () => {
     const handleRegister = async () => {
         setError('');
         
-        if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
+        if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword) {
             setError('Please fill in all account details.');
             return;
         }
@@ -87,10 +88,6 @@ const Register = () => {
             setError('Passwords do not match.');
             return;
         }
-
-        const nameParts = formData.name.trim().split(' ');
-        const firstName = nameParts[0];
-        const lastName = nameParts.slice(1).join(' ') || '';
         
         setRegistering(true);
         try {
@@ -101,8 +98,8 @@ const Register = () => {
                     id_number: idNumber,
                     role: assignedRole,
                     username: formData.email, // Use email as username
-                    first_name: firstName,
-                    last_name: lastName,
+                    first_name: formData.firstName,
+                    last_name: formData.lastName,
                     email: formData.email,
                     password: formData.password
                 }),
@@ -199,15 +196,26 @@ const Register = () => {
                                     STEP 2: ACCOUNT DETAILS
                                 </Typography>
                                 <Stack spacing={2}>
-                                    <TextField
-                                        label="Full Name"
-                                        name="name"
-                                        variant="outlined"
-                                        fullWidth
-                                        value={formData.name}
-                                        onChange={handleChange}
-                                        sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                                    />
+                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                                        <TextField
+                                            label="First Name"
+                                            name="firstName"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={formData.firstName}
+                                            onChange={handleChange}
+                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                        />
+                                        <TextField
+                                            label="Last Name"
+                                            name="lastName"
+                                            variant="outlined"
+                                            fullWidth
+                                            value={formData.lastName}
+                                            onChange={handleChange}
+                                            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                                        />
+                                    </Stack>
                                     <TextField
                                         label="Email Address"
                                         name="email"
