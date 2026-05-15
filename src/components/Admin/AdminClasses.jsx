@@ -4,7 +4,7 @@ import {
     Button, Chip, Stack, Dialog, DialogTitle, DialogContent, DialogActions, TextField,
     Autocomplete, Checkbox, Snackbar, Alert, Avatar, List, ListItem, ListItemAvatar, ListItemText,
     Divider, IconButton, FormControl, InputLabel, Select, MenuItem, InputAdornment, Card, 
-    LinearProgress, Grid, Collapse
+    LinearProgress, Grid, Collapse, Menu
 } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
@@ -20,6 +20,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import SchoolIcon from '@mui/icons-material/School';
 import DownloadIcon from '@mui/icons-material/Download';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -48,6 +49,7 @@ const AdminClasses = () => {
     const [expandedStudentId, setExpandedStudentId] = useState(null);
     const [studentDetails, setStudentDetails] = useState({}); 
     const [loadingStudentDetail, setLoadingStudentDetail] = useState(false);
+    const [exportAnchorEl, setExportAnchorEl] = useState(null);
 
     // Announce Dialog
     const [announceOpen, setAnnounceOpen] = useState(false);
@@ -175,38 +177,164 @@ const AdminClasses = () => {
     const handleDownloadPDF = () => {
         if (!reportData || !selectedClass) return;
         
-        const doc = new jsPDF();
+        const doc = new jsPDF('landscape');
         
-        // Header
-        doc.setFontSize(18);
-        doc.setTextColor(124, 58, 237); // Primary Purple
-        doc.text('Semester Report (Admin Oversight)', 14, 20);
-        
+        // Brand Header (Purple for Admin)
+        doc.setFillColor(124, 58, 237);
+        doc.rect(0, 0, 297, 30, 'F');
+        doc.setFontSize(22);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.text('EDUTRACK ADMIN OVERSIGHT REPORT', 14, 18);
         doc.setFontSize(12);
-        doc.setTextColor(100, 116, 139); // Text Secondary
-        doc.text(`Class: ${selectedClass.name} - ${selectedClass.section}`, 14, 30);
-        doc.text(`Teacher: ${selectedClass.teacher}`, 14, 38);
-        doc.text(`Total Students: ${reportData.totalStudents}`, 14, 46);
-        doc.text(`Class Average: ${reportData.classAverageEquiv}`, 14, 54);
-        doc.text(`Attendance Rate: ${reportData.attendanceRate}%`, 14, 62);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Class: ${selectedClass.name} — ${selectedClass.section}  |  Teacher: ${selectedClass.teacher}`, 14, 25);
         
-        // Table Data
-        const tableBody = (reportData.students || []).map(s => [
+        // 1. Attendance Matrix
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('I. ATTENDANCE MATRIX', 14, 40);
+        
+        const attDates = reportData.attendanceDates || [];
+        const attBody = (reportData.students || []).map(s => [
+            s.name,
+            ...attDates.map(d => (reportData.attendanceMatrix?.[s.id]?.[d] || '-').charAt(0))
+        ]);
+
+        autoTable(doc, {
+            startY: 45,
+            head: [['Student Name', ...attDates.map(d => d.split('-').slice(1).join('/'))]],
+            body: attBody,
+            theme: 'grid',
+            headStyles: { fillColor: [124, 58, 237], fontSize: 8 },
+            styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
+            columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+            margin: { left: 14, right: 14 }
+        });
+
+        // 2. Grades Matrix
+        const nextY = doc.lastAutoTable.finalY + 15;
+        if (nextY > 180) doc.addPage();
+        
+        doc.setFontSize(14);
+        doc.text('II. ASSESSMENT SCORES', 14, doc.lastAutoTable.finalY + 15);
+        
+        const assesses = reportData.assessments || [];
+        const scoreBody = (reportData.students || []).map(s => [
+            s.name,
+            ...assesses.map(a => reportData.scoresMatrix?.[s.id]?.[a.id] ?? '-')
+        ]);
+
+        autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 20,
+            head: [['Student Name', ...assesses.map(a => `${a.title} (${a.perfectScore})`)]],
+            body: scoreBody,
+            theme: 'grid',
+            headStyles: { fillColor: [71, 85, 105], fontSize: 8 },
+            styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
+            columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+            margin: { left: 14, right: 14 }
+        });
+
+        // 3. Final Summary
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text('III. FINAL SUMMARY & GWA', 14, 20);
+
+        const summaryBody = (reportData.students || []).map(s => [
             s.name,
             `${s.attendanceRate}%`,
-            s.grade,
+            `${s.grade}%`,
             s.equivalentGrade,
-            s.grade >= 75 ? 'PASSED' : 'FAILED'
+            s.grade >= (reportData.passingGrade || 60) ? 'PASSED' : 'FAILED'
         ]);
-        
+
         autoTable(doc, {
-            startY: 72,
+            startY: 25,
             head: [['Student Name', 'Attendance', 'Grade (%)', 'Equivalent', 'Status']],
-            body: tableBody,
-            headStyles: { fillColor: [124, 58, 237] }, // Purple for Admin
+            body: summaryBody,
+            theme: 'grid',
+            headStyles: { fillColor: [124, 58, 237] },
+            styles: { halign: 'center' },
+            columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+            didParseCell: (data) => {
+                if (data.section === 'body' && data.column.index === 4) {
+                    data.cell.styles.textColor = data.cell.raw === 'PASSED' ? [22, 163, 74] : [220, 38, 38];
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            }
         });
+
+        // Footer
+        const pageCount = doc.internal.getNumberOfPages();
+        for(let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(148, 163, 184);
+            doc.text(`Generated by EduTrack © ${new Date().getFullYear()} — Admin Oversight Copy`, 14, 200);
+            doc.text(`Page ${i} of ${pageCount}`, 280, 200, { align: 'right' });
+        }
         
-        doc.save(`${selectedClass.name}_${selectedClass.section}_AdminReport.pdf`);
+        doc.save(`${selectedClass.name}_Admin_Full_Report.pdf`);
+    };
+
+    const handleDownloadCSV = () => {
+        if (!reportData || !selectedClass) return;
+        
+        let csvRows = [];
+        
+        // 1. Attendance Table
+        csvRows.push(['I. ATTENDANCE REPORT']);
+        const attDates = reportData.attendanceDates || [];
+        csvRows.push(['Student Name', ...attDates]);
+        (reportData.students || []).forEach(s => {
+            const row = [s.name];
+            attDates.forEach(d => {
+                const status = reportData.attendanceMatrix?.[s.id]?.[d] || '-';
+                row.push(status.charAt(0) || '-');
+            });
+            csvRows.push(row);
+        });
+        csvRows.push([]); 
+        
+        // 2. Grades Table
+        csvRows.push(['II. ASSESSMENT SCORES']);
+        const assesses = reportData.assessments || [];
+        csvRows.push(['Student Name', ...assesses.map(a => `${a.title} (${a.perfectScore})`)]);
+        (reportData.students || []).forEach(s => {
+            const row = [s.name];
+            assesses.forEach(a => {
+                const score = reportData.scoresMatrix?.[s.id]?.[a.id];
+                row.push(score ?? '-');
+            });
+            csvRows.push(row);
+        });
+        csvRows.push([]);
+
+        // 3. Summary Table
+        csvRows.push(['III. FINAL SUMMARY']);
+        csvRows.push(['Student Name', 'Attendance %', 'Final Grade %', 'Equivalent', 'Status']);
+        (reportData.students || []).forEach(s => {
+            csvRows.push([
+                s.name,
+                `${s.attendanceRate}%`,
+                `${s.grade}%`,
+                s.equivalentGrade,
+                s.grade >= (reportData.passingGrade || 60) ? 'PASSED' : 'FAILED'
+            ]);
+        });
+
+        const csvContent = csvRows.map(r => r.map(cell => `"${(cell || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${selectedClass.name}_Admin_Full_Report.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const availableStudents = allStudents.filter(s => !currentRosterIds.includes(s.id));
@@ -348,26 +476,38 @@ const AdminClasses = () => {
                 </Table>
             </TableContainer>
 
-            {/* Reuse Report Dialog from TeacherClasses */}
+            {/* Semester Report Dialog */}
             <Dialog open={reportOpen} onClose={() => { setReportOpen(false); setReportData(null); }} fullWidth maxWidth="md">
                 <DialogTitle sx={{ fontWeight: 800, bgcolor: '#f8fafc', borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Stack direction="row" spacing={1.5} alignItems="center">
-                        <SummarizeIcon color="primary" />
+                        <SummarizeIcon sx={{ color: '#7c3aed' }} />
                         <Box sx={{ flexGrow: 1 }}>
                             <Typography variant="h6" fontWeight={900}>Semester Report</Typography>
                             <Typography variant="caption" color="text.secondary" fontWeight={700}>
                                 {selectedClass?.name} — {selectedClass?.section}
                             </Typography>
                         </Box>
-                        <Button 
-                            variant="contained" 
-                            startIcon={<DownloadIcon />} 
-                            onClick={handleDownloadPDF}
-                            disabled={!reportData || loadingReport}
-                            sx={{ fontWeight: 700, bgcolor: '#7c3aed' }}
-                        >
-                            Export PDF
-                        </Button>
+                        <Box>
+                            <Button 
+                                variant="contained" 
+                                startIcon={<DownloadIcon />} 
+                                endIcon={<KeyboardArrowDownIcon />}
+                                onClick={(e) => setExportAnchorEl(e.currentTarget)}
+                                disabled={!reportData || loadingReport}
+                                sx={{ fontWeight: 700, bgcolor: '#7c3aed', '&:hover': { bgcolor: '#6d28d9' } }}
+                            >
+                                Export Report
+                            </Button>
+                            <Menu
+                                anchorEl={exportAnchorEl}
+                                open={Boolean(exportAnchorEl)}
+                                onClose={() => setExportAnchorEl(null)}
+                                PaperProps={{ sx: { borderRadius: 2, minWidth: 150, mt: 1, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' } }}
+                            >
+                                <MenuItem onClick={() => { handleDownloadPDF(); setExportAnchorEl(null); }} sx={{ fontWeight: 600 }}>Export as PDF</MenuItem>
+                                <MenuItem onClick={() => { handleDownloadCSV(); setExportAnchorEl(null); }} sx={{ fontWeight: 600 }}>Export as CSV</MenuItem>
+                            </Menu>
+                        </Box>
                     </Stack>
                 </DialogTitle>
                 <DialogContent sx={{ p: 3 }}>
@@ -402,8 +542,8 @@ const AdminClasses = () => {
                                             <ListItem button onClick={() => handleToggleExpand(s)}
                                                 sx={{ 
                                                     borderBottom: '1px solid', borderColor: 'divider', py: 1.5,
-                                                    bgcolor: isExpanded ? 'rgba(37, 99, 235, 0.04)' : 'transparent',
-                                                    '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.08)' },
+                                                    bgcolor: isExpanded ? 'rgba(124, 58, 237, 0.04)' : 'transparent',
+                                                    '&:hover': { bgcolor: 'rgba(124, 58, 237, 0.08)' },
                                                     cursor: 'pointer',
                                                     transition: 'background-color 0.2s'
                                                 }}>
@@ -418,7 +558,7 @@ const AdminClasses = () => {
                                                 />
                                                 <Stack direction="row" spacing={3} alignItems="center">
                                                     <Stack alignItems="flex-end">
-                                                        <Typography variant="h6" fontWeight={900} color={s.grade >= 75 ? '#16a34a' : '#dc2626'}>
+                                                        <Typography variant="h6" fontWeight={900} color={s.grade >= (reportData.passingGrade || 60) ? '#16a34a' : '#dc2626'}>
                                                             {s.equivalentGrade}
                                                         </Typography>
                                                         <Chip
@@ -426,8 +566,8 @@ const AdminClasses = () => {
                                                             size="small"
                                                             sx={{
                                                                 fontWeight: 800, fontSize: '0.6rem', height: 20,
-                                                                bgcolor: s.grade >= 75 ? '#dcfce7' : '#fee2e2',
-                                                                color: s.grade >= 75 ? '#16a34a' : '#dc2626'
+                                                                bgcolor: s.grade >= (reportData.passingGrade || 60) ? '#dcfce7' : '#fee2e2',
+                                                                color: s.grade >= (reportData.passingGrade || 60) ? '#16a34a' : '#dc2626'
                                                             }}
                                                         />
                                                     </Stack>
@@ -440,7 +580,7 @@ const AdminClasses = () => {
                                                     {loadingStudentDetail && !details ? (
                                                         <Box sx={{ py: 2, textAlign: 'center' }}>
                                                             <Typography variant="body2" fontWeight={700} color="text.secondary">Fetching details...</Typography>
-                                                            <LinearProgress sx={{ mt: 1, borderRadius: 1 }} />
+                                                            <LinearProgress sx={{ mt: 1, borderRadius: 1, bgcolor: '#ede9fe', '& .MuiLinearProgress-bar': { bgcolor: '#7c3aed' } }} />
                                                         </Box>
                                                     ) : details ? (
                                                         <Stack spacing={3}>
@@ -449,7 +589,7 @@ const AdminClasses = () => {
                                                                     <Grid item xs={12} sm={4} key={cat}>
                                                                         <Paper elevation={0} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 3, bgcolor: 'white' }}>
                                                                             <Typography variant="caption" fontWeight={800} color="text.secondary">{cat.toUpperCase()}</Typography>
-                                                                            <Typography variant="h5" fontWeight={900} color="primary">{data.equivalentGrade}</Typography>
+                                                                            <Typography variant="h5" fontWeight={900} color="#7c3aed">{data.equivalentGrade}</Typography>
                                                                             <Typography variant="caption" color="text.secondary" fontWeight={600}>Avg: {data.average}% · Weight: {data.weight}%</Typography>
                                                                         </Paper>
                                                                     </Grid>
@@ -472,11 +612,49 @@ const AdminClasses = () => {
                                                                                 <TableRow key={sidx} hover>
                                                                                     <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem' }}>{score.title}</TableCell>
                                                                                     <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.75rem' }}>{score.score} / {score.perfectScore}</TableCell>
-                                                                                    <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.75rem', color: '#2563eb' }}>{score.percentage}%</TableCell>
+                                                                                    <TableCell align="right" sx={{ fontWeight: 800, fontSize: '0.75rem', color: '#7c3aed' }}>{score.percentage}%</TableCell>
                                                                                 </TableRow>
                                                                             ))}
                                                                         </TableBody>
                                                                     </Table>
+                                                                </Paper>
+                                                            </Box>
+
+                                                            {/* Attendance Log */}
+                                                            <Box>
+                                                                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                                                                    <Typography variant="caption" fontWeight={900} color="text.secondary" sx={{ letterSpacing: 1 }}>ATTENDANCE HISTORY</Typography>
+                                                                    <Stack direction="row" spacing={1.5}>
+                                                                        <Typography variant="caption" fontWeight={800} color="#16a34a">P: {details.attendance.counts.present}</Typography>
+                                                                        <Typography variant="caption" fontWeight={800} color="#dc2626">A: {details.attendance.counts.absent}</Typography>
+                                                                        <Typography variant="caption" fontWeight={800} color="#d97706">L: {details.attendance.counts.late}</Typography>
+                                                                    </Stack>
+                                                                </Stack>
+                                                                <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden', bgcolor: 'white' }}>
+                                                                    <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
+                                                                        <Table size="small" stickyHeader>
+                                                                            <TableHead>
+                                                                                <TableRow>
+                                                                                    <TableCell sx={{ fontWeight: 800, fontSize: '0.65rem', bgcolor: '#f1f5f9' }}>DATE</TableCell>
+                                                                                    <TableCell sx={{ fontWeight: 800, fontSize: '0.65rem', bgcolor: '#f1f5f9' }}>STATUS</TableCell>
+                                                                                </TableRow>
+                                                                            </TableHead>
+                                                                            <TableBody>
+                                                                                {details.attendance.records.map((r, ridx) => (
+                                                                                    <TableRow key={ridx} hover>
+                                                                                        <TableCell sx={{ fontSize: '0.75rem', py: 1, fontWeight: 600 }}>{r.date}</TableCell>
+                                                                                        <TableCell sx={{ py: 1 }}>
+                                                                                            <Chip label={r.status} size="small" sx={{ 
+                                                                                                fontWeight: 800, fontSize: '0.6rem', height: 18,
+                                                                                                bgcolor: r.status === 'Present' ? '#dcfce7' : r.status === 'Absent' ? '#fee2e2' : '#fef3c7',
+                                                                                                color: r.status === 'Present' ? '#16a34a' : r.status === 'Absent' ? '#dc2626' : '#d97706'
+                                                                                            }} />
+                                                                                        </TableCell>
+                                                                                    </TableRow>
+                                                                                ))}
+                                                                            </TableBody>
+                                                                        </Table>
+                                                                    </Box>
                                                                 </Paper>
                                                             </Box>
                                                         </Stack>
@@ -488,9 +666,64 @@ const AdminClasses = () => {
                                 })}
                             </List>
                         </Stack>
-                    ) : null}
+                    ) : (
+                        <Box sx={{ py: 6, textAlign: 'center' }}><Typography color="text.secondary" fontWeight={600}>No report data available.</Typography></Box>
+                    )}
                 </DialogContent>
-                <DialogActions sx={{ p: 2.5 }}><Button onClick={() => setReportOpen(false)}>Close</Button></DialogActions>
+                <DialogActions sx={{ p: 2.5, bgcolor: '#f8fafc', borderTop: '1px solid', borderColor: 'divider' }}>
+                    <Button onClick={() => { setReportOpen(false); setReportData(null); }} sx={{ fontWeight: 700 }}>Close</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Enroll Students Dialog */}
+            <Dialog open={enrollOpen} onClose={() => setEnrollOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle sx={{ fontWeight: 800 }}>Enroll Students — {selectedClass?.name}</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Select students to enroll in this section. Students already enrolled are hidden.
+                    </Typography>
+                    <Autocomplete
+                        multiple
+                        options={availableStudents}
+                        disableCloseOnSelect
+                        getOptionLabel={(option) => option.name}
+                        value={selectedStudents}
+                        onChange={(_, newValue) => setSelectedStudents(newValue)}
+                        renderOption={(props, option, { selected }) => (
+                            <li {...props}>
+                                <Checkbox icon={icon} checkedIcon={checkedIcon} style={{ marginRight: 8 }} checked={selected} />
+                                {option.name} ({option.email})
+                            </li>
+                        )}
+                        renderInput={(params) => <TextField {...params} label="Select Students" placeholder="Search students..." />}
+                    />
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setEnrollOpen(false)}>Cancel</Button>
+                    <Button variant="contained" onClick={handleEnroll} disabled={selectedStudents.length === 0} sx={{ fontWeight: 700, bgcolor: '#7c3aed' }}>
+                        Enroll Selected
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Announce Dialog */}
+            <Dialog open={announceOpen} onClose={() => setAnnounceOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CampaignIcon sx={{ color: '#7c3aed' }} />
+                    Announce to Class
+                </DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <TextField label="Title" fullWidth value={announceTitle} onChange={(e) => setAnnounceTitle(e.target.value)} />
+                        <TextField label="Message" fullWidth multiline rows={4} value={announceMessage} onChange={(e) => setAnnounceMessage(e.target.value)} />
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setAnnounceOpen(false)}>Cancel</Button>
+                    <Button variant="contained" onClick={handleAnnounce} disabled={announcing || !announceTitle.trim()} sx={{ fontWeight: 700, bgcolor: '#7c3aed' }}>
+                        {announcing ? 'Sending...' : 'Send Announcement'}
+                    </Button>
+                </DialogActions>
             </Dialog>
 
             {/* Roster Dialog */}
@@ -500,7 +733,7 @@ const AdminClasses = () => {
                     <List>
                         {rosterStudents.map((student) => (
                             <ListItem key={student.id}>
-                                <ListItemAvatar><Avatar>{student.name[0]}</Avatar></ListItemAvatar>
+                                <ListItemAvatar><Avatar sx={{ bgcolor: '#7c3aed' }}>{student.name[0]}</Avatar></ListItemAvatar>
                                 <ListItemText primary={student.name} secondary={student.email} />
                             </ListItem>
                         ))}
@@ -509,11 +742,12 @@ const AdminClasses = () => {
                 <DialogActions><Button onClick={() => setRosterOpen(false)}>Close</Button></DialogActions>
             </Dialog>
 
-            <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-                <Alert severity={snackbar.severity} sx={{ width: '100%', fontWeight: 700 }}>{snackbar.message}</Alert>
+            <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+                <Alert severity={snackbar.severity} variant="filled" sx={{ width: '100%', fontWeight: 700 }}>{snackbar.message}</Alert>
             </Snackbar>
         </Box>
     );
 };
 
 export default AdminClasses;
+

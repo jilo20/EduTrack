@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
     Box, Typography, Button, AppBar, Toolbar, Drawer, List, ListItemButton,
     ListItemIcon, ListItemText, Avatar, Stack, Dialog, DialogTitle,
@@ -19,15 +19,40 @@ import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import Chatbot from './Chatbot';
 
 const drawerWidth = 250;
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
 const DashboardLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [user, setUser] = useState(null);
     const [logoutOpen, setLogoutOpen] = useState(false);
+    const [idleLogoutOpen, setIdleLogoutOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [notifAnchor, setNotifAnchor] = useState(null);
     const [notifications, setNotifications] = useState([]);
+    const idleTimerRef = useRef(null);
+
+    // Auto Logout Logic
+    useEffect(() => {
+        const handleIdle = () => {
+            localStorage.clear();
+            setIdleLogoutOpen(true);
+        };
+
+        const resetIdleTimer = () => {
+            if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+            idleTimerRef.current = setTimeout(handleIdle, IDLE_TIMEOUT_MS);
+        };
+
+        const events = ['mousemove', 'keydown', 'mousedown', 'scroll', 'touchstart'];
+        events.forEach(e => window.addEventListener(e, resetIdleTimer));
+        resetIdleTimer();
+
+        return () => {
+            events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+            if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+        };
+    }, []);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
@@ -300,6 +325,19 @@ const DashboardLayout = () => {
                     <Button onClick={() => setLogoutOpen(false)} sx={{ fontWeight: 700 }}>Cancel</Button>
                     <Button variant="contained" color="error" onClick={handleLogout} sx={{ fontWeight: 700 }}>
                         Sign Out
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Idle Logout Dialog */}
+            <Dialog open={idleLogoutOpen} disableEscapeKeyDown maxWidth="xs" fullWidth>
+                <DialogTitle sx={{ fontWeight: 800, color: 'error.main' }}>Session Expired</DialogTitle>
+                <DialogContent>
+                    <Typography>You have been automatically logged out due to 15 minutes of inactivity for your security.</Typography>
+                </DialogContent>
+                <DialogActions sx={{ p: 2.5 }}>
+                    <Button variant="contained" color="primary" onClick={() => { setIdleLogoutOpen(false); navigate('/', { replace: true }); }} sx={{ fontWeight: 700 }} fullWidth>
+                        Back to Login
                     </Button>
                 </DialogActions>
             </Dialog>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
     Box, Typography, Grid, Card, CardContent, Chip, Stack, Paper, Skeleton,
-    Tabs, Tab, Badge, Divider, Button, IconButton
+    Tabs, Tab, Badge, Divider, Button, IconButton,
+    Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -16,6 +17,7 @@ const Announcements = () => {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState(0);
+    const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
     useEffect(() => {
         try {
@@ -252,28 +254,57 @@ const Announcements = () => {
                         {announcements.length > 0 ? (
                             <Stack spacing={2}>
                                 {announcements.map(a => (
-                                    <Paper key={a.id} elevation={0} sx={{
-                                        p: 3, borderRadius: 3,
-                                        border: '1px solid', borderColor: 'divider',
-                                        borderLeft: `4px solid ${a.priority === 'high' ? '#2563EB' : '#94a3b8'}`,
-                                        transition: '0.2s',
-                                        '&:hover': { borderColor: 'primary.main', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)' }
-                                    }}>
-                                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                                    <Paper 
+                                        key={a.id} 
+                                        elevation={0} 
+                                        onClick={() => setSelectedAnnouncement(a)}
+                                        sx={{
+                                            p: 3, borderRadius: 3,
+                                            border: '1px solid', borderColor: 'divider',
+                                            borderLeft: `4px solid ${a.priority === 'high' ? '#2563EB' : '#94a3b8'}`,
+                                            transition: '0.2s',
+                                            cursor: 'pointer',
+                                            height: 160,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            '&:hover': { borderColor: 'primary.main', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)' }
+                                        }}
+                                    >
+                                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 1 }}>
                                             <Box sx={{ flex: 1 }}>
                                                 <Stack direction="row" spacing={1.5} alignItems="center" mb={1}>
-                                                    <Typography variant="h6" fontWeight={700}>{a.title}</Typography>
+                                                    <Typography variant="h6" fontWeight={700} sx={{
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        display: '-webkit-box',
+                                                        WebkitLineClamp: 1,
+                                                        WebkitBoxOrient: 'vertical'
+                                                    }}>
+                                                        {a.title}
+                                                    </Typography>
                                                     {a.priority === 'high' && (
                                                         <Chip label="Important" size="small" color="error"
                                                             sx={{ fontWeight: 800, fontSize: '0.65rem', height: 22 }} />
                                                     )}
                                                 </Stack>
-                                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>{a.content}</Typography>
-                                                <Typography variant="caption" color="text.disabled" fontWeight={600}>
-                                                    📅 {formatDate(a.date)}
+                                                <Typography variant="body2" color="text.secondary" sx={{ 
+                                                    mb: 1.5,
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    display: '-webkit-box',
+                                                    WebkitLineClamp: 2,
+                                                    WebkitBoxOrient: 'vertical',
+                                                    lineHeight: 1.5
+                                                }}>
+                                                    {a.content}
                                                 </Typography>
                                             </Box>
                                         </Stack>
+                                        <Box sx={{ mt: 'auto' }}>
+                                            <Typography variant="caption" color="text.disabled" fontWeight={600}>
+                                                📅 {formatDate(a.date)}
+                                            </Typography>
+                                        </Box>
                                     </Paper>
                                 ))}
                             </Stack>
@@ -284,6 +315,52 @@ const Announcements = () => {
                                 <Typography variant="body2" color="text.secondary">Check back later for updates from your institution.</Typography>
                             </Box>
                         )}
+
+                        {/* Announcement Detail Dialog */}
+                        <Dialog 
+                            open={Boolean(selectedAnnouncement)} 
+                            onClose={() => setSelectedAnnouncement(null)}
+                            maxWidth="sm"
+                            fullWidth
+                            PaperProps={{
+                                sx: { borderRadius: 4, p: 1 }
+                            }}
+                        >
+                            {selectedAnnouncement && (
+                                <>
+                                    <DialogTitle sx={{ pb: 1 }}>
+                                        <Stack direction="row" spacing={2} alignItems="center">
+                                            <Box sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(37, 99, 235, 0.1)', color: '#2563EB' }}>
+                                                <CampaignIcon />
+                                            </Box>
+                                            <Box sx={{ flex: 1 }}>
+                                                <Typography variant="h6" fontWeight={800}>{selectedAnnouncement.title}</Typography>
+                                                <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                                                    Posted on {formatDate(selectedAnnouncement.date)}
+                                                </Typography>
+                                            </Box>
+                                            {selectedAnnouncement.priority === 'high' && (
+                                                <Chip label="IMPORTANT" size="small" color="error" sx={{ fontWeight: 900, fontSize: '0.6rem' }} />
+                                            )}
+                                        </Stack>
+                                    </DialogTitle>
+                                    <Divider sx={{ mx: 3 }} />
+                                    <DialogContent sx={{ py: 3 }}>
+                                        <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7, color: 'text.primary' }}>
+                                            {selectedAnnouncement.content}
+                                        </Typography>
+                                    </DialogContent>
+                                    <DialogActions sx={{ p: 2, pt: 0 }}>
+                                        <Button 
+                                            onClick={() => setSelectedAnnouncement(null)} 
+                                            sx={{ fontWeight: 700, borderRadius: 2 }}
+                                        >
+                                            Close
+                                        </Button>
+                                    </DialogActions>
+                                </>
+                            )}
+                        </Dialog>
                     </Box>
                 )}
 

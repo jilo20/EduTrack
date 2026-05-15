@@ -73,6 +73,7 @@ const TeacherClasses = () => {
     const [expandedStudentId, setExpandedStudentId] = useState(null);
     const [studentDetails, setStudentDetails] = useState({}); // Cache for student details
     const [loadingStudentDetail, setLoadingStudentDetail] = useState(false);
+    const [exportAnchorEl, setExportAnchorEl] = useState(null);
 
     // Announce Dialog
     const [announceOpen, setAnnounceOpen] = useState(false);
@@ -264,37 +265,164 @@ const TeacherClasses = () => {
     const handleDownloadPDF = () => {
         if (!reportData || !selectedClass) return;
         
-        const doc = new jsPDF();
+        const doc = new jsPDF('landscape'); // Landscape for matrices
         
-        // Header
-        doc.setFontSize(18);
-        doc.setTextColor(37, 99, 235); // Primary Blue
-        doc.text('Semester Report', 14, 20);
-        
+        // Brand Header
+        doc.setFillColor(37, 99, 235);
+        doc.rect(0, 0, 297, 30, 'F');
+        doc.setFontSize(22);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.text('EDUTRACK COMPREHENSIVE REPORT', 14, 18);
         doc.setFontSize(12);
-        doc.setTextColor(100, 116, 139); // Text Secondary
-        doc.text(`Class: ${selectedClass.name} - ${selectedClass.section}`, 14, 30);
-        doc.text(`Total Students: ${reportData.totalStudents}`, 14, 38);
-        doc.text(`Class Average: ${reportData.classAverageEquiv}`, 14, 46);
-        doc.text(`Attendance Rate: ${reportData.attendanceRate}%`, 14, 54);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Class: ${selectedClass.name} — ${selectedClass.section}  |  Avg: ${reportData.classAverageEquiv}`, 14, 25);
         
-        // Table Data
-        const tableBody = (reportData.students || []).map(s => [
+        // 1. Attendance Matrix
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('I. ATTENDANCE MATRIX', 14, 40);
+        
+        const attDates = reportData.attendanceDates || [];
+        const attBody = (reportData.students || []).map(s => [
+            s.name,
+            ...attDates.map(d => (reportData.attendanceMatrix?.[s.id]?.[d] || '-').charAt(0))
+        ]);
+
+        autoTable(doc, {
+            startY: 45,
+            head: [['Student Name', ...attDates.map(d => d.split('-').slice(1).join('/'))]],
+            body: attBody,
+            theme: 'grid',
+            headStyles: { fillColor: [37, 99, 235], fontSize: 8 },
+            styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
+            columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+            margin: { left: 14, right: 14 }
+        });
+
+        // 2. Grades Matrix
+        const nextY = doc.lastAutoTable.finalY + 15;
+        if (nextY > 180) doc.addPage();
+        
+        doc.setFontSize(14);
+        doc.text('II. ASSESSMENT SCORES', 14, doc.lastAutoTable.finalY + 15);
+        
+        const assesses = reportData.assessments || [];
+        const scoreBody = (reportData.students || []).map(s => [
+            s.name,
+            ...assesses.map(a => reportData.scoresMatrix?.[s.id]?.[a.id] ?? '-')
+        ]);
+
+        autoTable(doc, {
+            startY: doc.lastAutoTable.finalY + 20,
+            head: [['Student Name', ...assesses.map(a => `${a.title} (${a.perfectScore})`)]],
+            body: scoreBody,
+            theme: 'grid',
+            headStyles: { fillColor: [71, 85, 105], fontSize: 8 },
+            styles: { fontSize: 7, cellPadding: 2, halign: 'center' },
+            columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+            margin: { left: 14, right: 14 }
+        });
+
+        // 3. Final Summary
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text('III. FINAL SUMMARY & GWA', 14, 20);
+
+        const summaryBody = (reportData.students || []).map(s => [
             s.name,
             `${s.attendanceRate}%`,
-            s.grade,
+            `${s.grade}%`,
             s.equivalentGrade,
-            s.grade >= 75 ? 'PASSED' : 'FAILED'
+            s.grade >= (reportData.passingGrade || 60) ? 'PASSED' : 'FAILED'
         ]);
-        
+
         autoTable(doc, {
-            startY: 65,
+            startY: 25,
             head: [['Student Name', 'Attendance', 'Grade (%)', 'Equivalent', 'Status']],
-            body: tableBody,
+            body: summaryBody,
+            theme: 'grid',
             headStyles: { fillColor: [37, 99, 235] },
+            styles: { halign: 'center' },
+            columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+            didParseCell: (data) => {
+                if (data.section === 'body' && data.column.index === 4) {
+                    data.cell.styles.textColor = data.cell.raw === 'PASSED' ? [22, 163, 74] : [220, 38, 38];
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            }
         });
+
+        // Footer
+        const pageCount = doc.internal.getNumberOfPages();
+        for(let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(148, 163, 184);
+            doc.text(`Generated by EduTrack © ${new Date().getFullYear()} — Detailed Semester Report`, 14, 200);
+            doc.text(`Page ${i} of ${pageCount}`, 280, 200, { align: 'right' });
+        }
         
-        doc.save(`${selectedClass.name}_${selectedClass.section}_Report.pdf`);
+        doc.save(`${selectedClass.name}_Report_Full.pdf`);
+    };
+
+    const handleDownloadCSV = () => {
+        if (!reportData || !selectedClass) return;
+        
+        let csvRows = [];
+        
+        // 1. Attendance Table
+        csvRows.push(['I. ATTENDANCE REPORT']);
+        const attDates = reportData.attendanceDates || [];
+        csvRows.push(['Student Name', ...attDates]);
+        (reportData.students || []).forEach(s => {
+            const row = [s.name];
+            attDates.forEach(d => {
+                const status = reportData.attendanceMatrix?.[s.id]?.[d] || '-';
+                row.push(status.charAt(0) || '-');
+            });
+            csvRows.push(row);
+        });
+        csvRows.push([]); 
+        
+        // 2. Grades Table
+        csvRows.push(['II. ASSESSMENT SCORES']);
+        const assesses = reportData.assessments || [];
+        csvRows.push(['Student Name', ...assesses.map(a => `${a.title} (${a.perfectScore})`)]);
+        (reportData.students || []).forEach(s => {
+            const row = [s.name];
+            assesses.forEach(a => {
+                const score = reportData.scoresMatrix?.[s.id]?.[a.id];
+                row.push(score ?? '-');
+            });
+            csvRows.push(row);
+        });
+        csvRows.push([]);
+
+        // 3. Summary Table
+        csvRows.push(['III. FINAL SUMMARY']);
+        csvRows.push(['Student Name', 'Attendance %', 'Final Grade %', 'Equivalent', 'Status']);
+        (reportData.students || []).forEach(s => {
+            csvRows.push([
+                s.name,
+                `${s.attendanceRate}%`,
+                `${s.grade}%`,
+                s.equivalentGrade,
+                s.grade >= (reportData.passingGrade || 60) ? 'PASSED' : 'FAILED'
+            ]);
+        });
+
+        const csvContent = csvRows.map(r => r.map(cell => `"${(cell || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${selectedClass.name}_Full_Report.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const availableStudents = allStudents.filter(s => !currentRosterIds.includes(s.id));
@@ -643,6 +771,22 @@ const TeacherClasses = () => {
                         <Autocomplete multiple options={availableStudents} disableCloseOnSelect
                             getOptionLabel={(option) => `${option.name} (${option.email})`}
                             value={selectedStudents} onChange={(event, newValue) => setSelectedStudents(newValue)}
+                            renderTags={(value, getTagProps) => {
+                                const visibleTags = 2;
+                                if (value.length > visibleTags) {
+                                    return (
+                                        <>
+                                            <Chip label={`+${value.length - visibleTags} more`} size="small" sx={{ m: '3px' }} />
+                                            {value.slice(-visibleTags).map((option, index) => (
+                                                <Chip label={option.name} size="small" {...getTagProps({ index: value.length - visibleTags + index })} sx={{ m: '3px' }} />
+                                            ))}
+                                        </>
+                                    );
+                                }
+                                return value.map((option, index) => (
+                                    <Chip label={option.name} size="small" {...getTagProps({ index })} sx={{ m: '3px' }} />
+                                ));
+                            }}
                             renderOption={(props, option, { selected }) => (
                                 <li {...props}>
                                     <Checkbox icon={icon} checkedIcon={checkedIcon} style={{ marginRight: 8 }} checked={selected} />
@@ -733,15 +877,27 @@ const TeacherClasses = () => {
                                 {selectedClass?.name} — {selectedClass?.section}
                             </Typography>
                         </Box>
-                        <Button 
-                            variant="contained" 
-                            startIcon={<DownloadIcon />} 
-                            onClick={handleDownloadPDF}
-                            disabled={!reportData || loadingReport}
-                            sx={{ fontWeight: 700, bgcolor: '#2563EB' }}
-                        >
-                            Export PDF
-                        </Button>
+                        <Box>
+                            <Button 
+                                variant="contained" 
+                                startIcon={<DownloadIcon />} 
+                                endIcon={<KeyboardArrowDownIcon />}
+                                onClick={(e) => setExportAnchorEl(e.currentTarget)}
+                                disabled={!reportData || loadingReport}
+                                sx={{ fontWeight: 700, bgcolor: '#2563EB' }}
+                            >
+                                Export Report
+                            </Button>
+                            <Menu
+                                anchorEl={exportAnchorEl}
+                                open={Boolean(exportAnchorEl)}
+                                onClose={() => setExportAnchorEl(null)}
+                                PaperProps={{ sx: { borderRadius: 2, minWidth: 150, mt: 1, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' } }}
+                            >
+                                <MenuItem onClick={() => { handleDownloadPDF(); setExportAnchorEl(null); }} sx={{ fontWeight: 600 }}>Export as PDF</MenuItem>
+                                <MenuItem onClick={() => { handleDownloadCSV(); setExportAnchorEl(null); }} sx={{ fontWeight: 600 }}>Export as CSV</MenuItem>
+                            </Menu>
+                        </Box>
                     </Stack>
                 </DialogTitle>
                 <DialogContent sx={{ p: 3 }}>

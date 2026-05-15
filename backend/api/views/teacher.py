@@ -337,12 +337,38 @@ class ClassReportView(APIView):
         total_late = valid_att.filter(status='Late').count()
         att_rate = round(((total_present + total_late * 0.5) / total_att) * 100) if total_att > 0 else 0
 
+        # Full Matrices for detailed export
+        attendance_dates = sorted(list(set(all_attendance.values_list('date', flat=True))))
+        assessments = [
+            {'id': a.id, 'title': a.title, 'type': a.type, 'perfectScore': a.perfect_score}
+            for a in Assessment.objects.filter(section=section).order_by('id')
+        ]
+
+        # Matrices
+        attendance_matrix = {}
+        scores_matrix = {}
+        for e in enrollments:
+            st_att = all_attendance.filter(student=e.student)
+            attendance_matrix[e.student_id] = {str(r.date): r.status for r in st_att}
+            
+            st_scores = Score.objects.filter(student=e.student, assessment__section=section)
+            scores_matrix[e.student_id] = {r.assessment_id: r.score for r in st_scores}
+
         return Response({
-            'className': section.course_program, 'sectionCode': section.code_name,
-            'totalStudents': len(students_data), 'classAverage': class_avg,
+            'className': section.course_program, 
+            'sectionCode': section.code_name,
+            'totalStudents': len(students_data), 
+            'classAverage': class_avg,
             'classAverageEquiv': class_avg_equiv,
-            'attendanceRate': att_rate, 'passingCount': passing, 'students': students_data,
-            'passingGrade': passing_grade
+            'attendanceRate': att_rate, 
+            'passingCount': passing, 
+            'students': students_data,
+            'passingGrade': passing_grade,
+            # Matrix Data
+            'attendanceDates': [str(d) for d in attendance_dates],
+            'assessments': assessments,
+            'attendanceMatrix': attendance_matrix,
+            'scoresMatrix': scores_matrix
         })
 
 

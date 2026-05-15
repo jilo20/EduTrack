@@ -26,7 +26,7 @@ import AttendanceManager from './components/Teacher/AttendanceManager';
 // Student Components
 import StudentDashboard from './components/Student/StudentDashboard';
 import AcademicPerformance from './components/Student/AcademicPerformance';
-import Assignments from './components/Student/Assignments';
+import Assessments from './components/Student/Assignments';
 import Attendance from './components/Student/Attendance';
 import Announcements from './components/Common/Announcements';
 
@@ -80,7 +80,7 @@ function App() {
                             <Route path="performance" element={<PerformanceRouter />} />
                             <Route path="attendance" element={<AttendanceManager />} />
                             <Route path="my-attendance" element={<Attendance />} />
-                            <Route path="assignments" element={<Assignments />} />
+                            <Route path="assignments" element={<Assessments />} />
                             <Route path="announcements" element={<Announcements />} />
                         </Route>
                         <Route path="*" element={<Navigate to="/" replace />} />
