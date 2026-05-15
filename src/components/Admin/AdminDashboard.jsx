@@ -183,7 +183,7 @@ const AdminDashboard = () => {
                                                     {user?.name?.[0] || 'U'}
                                                 </Avatar>
                                                 <Box sx={{ flexGrow: 1 }}>
-                                                    <Typography component="div" variant="body1" fontWeight={800} sx={{ display: 'flex', alignItems: 'center' }}>
+                                                    <Typography variant="body1" fontWeight={800}>
                                                         {user.name} 
                                                         {user.id_number && (
                                                             <Chip label={user.id_number} size="small" sx={{ ml: 1, height: 20, fontSize: '0.65rem', fontWeight: 700 }} />

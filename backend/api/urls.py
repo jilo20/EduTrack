@@ -5,7 +5,7 @@ from api.views import (
     # Admin
     AdminStatsView, InviteCreateView, InviteListView,
     AdminUserCreateView, AdminUserUpdateView, AdminUserDeleteView,
-    AuditLogListView, AdminSectionsView,
+    AuditLogListView,
     # Teacher
     TeacherClassesView, ClassCreateView, ClassWeightsView,
     ClassRosterView, EnrollStudentsView, ClassAnnouncementView,
@@ -22,7 +22,6 @@ from api.views import (
     StatusView, UserNotificationsView, MarkNotificationReadView,
     MarkAllNotificationsReadView, ClearAllNotificationsView,
     AnnouncementListView, AnnouncementCreateView,
-    ChatbotView,
 )
 
 urlpatterns = [
@@ -39,7 +38,6 @@ urlpatterns = [
     path('admin/users/<int:user_id>', AdminUserUpdateView.as_view()),
     path('admin/users/<int:user_id>/delete', AdminUserDeleteView.as_view()),
     path('audit-logs', AuditLogListView.as_view()),
-    path('admin/sections', AdminSectionsView.as_view()),
 
     # ── Teacher ───────────────────────────────────────
     path('teacher/<int:teacher_id>/classes', TeacherClassesView.as_view()),
@@ -78,6 +76,5 @@ urlpatterns = [
     path('notifications/clear-all/<int:user_id>', ClearAllNotificationsView.as_view()),
     path('announcements', AnnouncementListView.as_view()),
     path('announcements/create', AnnouncementCreateView.as_view()),
-    path('chatbot', ChatbotView.as_view()),
 ]
 

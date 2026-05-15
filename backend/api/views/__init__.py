@@ -4,4 +4,3 @@ from .teacher import *
 from .student import *
 from .analytics import *
 from .misc import *
-from .chatbot import *

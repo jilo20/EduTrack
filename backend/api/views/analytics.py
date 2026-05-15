@@ -67,8 +67,7 @@ class TeacherRichAnalyticsView(APIView):
             avg = round(sum(valid) / len(valid), 1) if valid else 0
             
             from api.gwa import percentage_to_grade_point
-            passing_grade = s.settings.get('passing_grade', 60)
-            avg_equiv = percentage_to_grade_point(avg, passing_grade)
+            avg_equiv = percentage_to_grade_point(avg)
 
             class_performance.append({
                 'id': s.id, 'name': s.code_name, 'fullName': s.course_program,

@@ -127,9 +127,9 @@ const StudentDashboard = () => {
                         <Typography variant="h6" fontWeight={800} mb={2}>Performance Over Time</Typography>
                         <ResponsiveContainer width="100%" height="85%">
                             <LineChart data={analytics.trendData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={true} stroke="#f1f5f9" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                 <XAxis dataKey="title" hide />
-                                <YAxis domain={[0, 100]} axisLine={true} tickLine={true} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} tickFormatter={(value) => `${value}%`} />
+                                <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} tickFormatter={(value) => `${value}%`} />
                                 <RechartsTooltip
                                     formatter={(value) => [`${value}%`, 'Score']}
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}

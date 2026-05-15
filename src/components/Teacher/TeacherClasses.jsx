@@ -25,9 +25,6 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import DownloadIcon from '@mui/icons-material/Download';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 const icon = <CheckBoxOutlineBlankIcon fontSize="small" />;
 const checkedIcon = <CheckBoxIcon fontSize="small" />;
@@ -259,42 +256,6 @@ const TeacherClasses = () => {
         } finally {
             setLoadingStudentDetail(false);
         }
-    };
-
-    const handleDownloadPDF = () => {
-        if (!reportData || !selectedClass) return;
-        
-        const doc = new jsPDF();
-        
-        // Header
-        doc.setFontSize(18);
-        doc.setTextColor(37, 99, 235); // Primary Blue
-        doc.text('Semester Report', 14, 20);
-        
-        doc.setFontSize(12);
-        doc.setTextColor(100, 116, 139); // Text Secondary
-        doc.text(`Class: ${selectedClass.name} - ${selectedClass.section}`, 14, 30);
-        doc.text(`Total Students: ${reportData.totalStudents}`, 14, 38);
-        doc.text(`Class Average: ${reportData.classAverageEquiv}`, 14, 46);
-        doc.text(`Attendance Rate: ${reportData.attendanceRate}%`, 14, 54);
-        
-        // Table Data
-        const tableBody = (reportData.students || []).map(s => [
-            s.name,
-            `${s.attendanceRate}%`,
-            s.grade,
-            s.equivalentGrade,
-            s.grade >= 75 ? 'PASSED' : 'FAILED'
-        ]);
-        
-        autoTable(doc, {
-            startY: 65,
-            head: [['Student Name', 'Attendance', 'Grade (%)', 'Equivalent', 'Status']],
-            body: tableBody,
-            headStyles: { fillColor: [37, 99, 235] },
-        });
-        
-        doc.save(`${selectedClass.name}_${selectedClass.section}_Report.pdf`);
     };
 
     const availableStudents = allStudents.filter(s => !currentRosterIds.includes(s.id));
@@ -727,21 +688,12 @@ const TeacherClasses = () => {
                 <DialogTitle sx={{ fontWeight: 800, bgcolor: '#f8fafc', borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Stack direction="row" spacing={1.5} alignItems="center">
                         <SummarizeIcon color="primary" />
-                        <Box sx={{ flexGrow: 1 }}>
+                        <Box>
                             <Typography variant="h6" fontWeight={900}>Semester Report</Typography>
                             <Typography variant="caption" color="text.secondary" fontWeight={700}>
                                 {selectedClass?.name} — {selectedClass?.section}
                             </Typography>
                         </Box>
-                        <Button 
-                            variant="contained" 
-                            startIcon={<DownloadIcon />} 
-                            onClick={handleDownloadPDF}
-                            disabled={!reportData || loadingReport}
-                            sx={{ fontWeight: 700, bgcolor: '#2563EB' }}
-                        >
-                            Export PDF
-                        </Button>
                     </Stack>
                 </DialogTitle>
                 <DialogContent sx={{ p: 3 }}>
@@ -784,7 +736,7 @@ const TeacherClasses = () => {
                                                     transition: 'background-color 0.2s'
                                                 }}>
                                                 <ListItemAvatar>
-                                                    <Avatar sx={{ bgcolor: s.grade >= (reportData.passingGrade || 60) ? '#dcfce7' : '#fee2e2', color: s.grade >= (reportData.passingGrade || 60) ? '#16a34a' : '#dc2626', fontWeight: 800, fontSize: '0.8rem' }}>
+                                                    <Avatar sx={{ bgcolor: s.grade >= 75 ? '#dcfce7' : '#fee2e2', color: s.grade >= 75 ? '#16a34a' : '#dc2626', fontWeight: 800, fontSize: '0.8rem' }}>
                                                         {(s?.name || '').split(' ').map(n => n?.[0] || '').join('').slice(0, 2)}
                                                     </Avatar>
                                                 </ListItemAvatar>
@@ -798,7 +750,7 @@ const TeacherClasses = () => {
                                                             {s.equivalentGrade}
                                                         </Typography>
                                                         <Chip
-                                                            label={s.grade >= (reportData.passingGrade || 60) ? 'PASSED' : 'FAILED'}
+                                                            label={s.grade >= 75 ? 'PASSED' : 'FAILED'}
                                                             size="small"
                                                             sx={{
                                                                 fontWeight: 800, fontSize: '0.6rem', height: 20,

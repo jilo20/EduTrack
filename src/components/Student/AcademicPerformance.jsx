@@ -60,11 +60,11 @@ const AcademicPerformance = () => {
     const gradeColor = (gwaData?.gwa || 0) >= 85 ? '#16A34A' : (gwaData?.gwa || 0) >= 75 ? '#2563EB' : '#DC2626';
 
     const filteredSections = (gwaData?.sectionGrades || []).filter(s => 
-        filterClass === 'all' || s.sectionId == filterClass
+        filterClass === 'all' || s.sectionId === filterClass
     );
 
     const filteredPerformance = performance.filter(p => {
-        const matchesClass = filterClass === 'all' || p.sectionId == filterClass;
+        const matchesClass = filterClass === 'all' || p.section_id === filterClass;
         const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                              p.sectionName.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesClass && matchesSearch;

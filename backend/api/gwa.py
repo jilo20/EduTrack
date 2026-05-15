@@ -151,14 +151,21 @@ def percentage_to_grade_point(percentage, passing_grade=60):
     
     if percentage >= 100: return 1.00
     
-    # Linear interpolation: Grade = 1.0 + 2.0 * (100 - percentage) / (100 - passing_grade)
+    # Scale from passing_grade (3.0) to 100 (1.0)
     range_val = 100 - passing_grade
     if range_val <= 0: return 3.00
     
-    raw_grade = 1.0 + 2.0 * (100 - percentage) / range_val
+    step = range_val / 8 # 8 steps: 1.0 to 2.75
     
-    # Round to the nearest 0.25
-    return round(raw_grade * 4) / 4
+    if percentage >= 100 - step * 0.5: return 1.00
+    if percentage >= 100 - step * 1.5: return 1.25
+    if percentage >= 100 - step * 2.5: return 1.50
+    if percentage >= 100 - step * 3.5: return 1.75
+    if percentage >= 100 - step * 4.5: return 2.00
+    if percentage >= 100 - step * 5.5: return 2.25
+    if percentage >= 100 - step * 6.5: return 2.50
+    if percentage >= 100 - step * 7.5: return 2.75
+    return 3.00
 
 
 def get_grade_description(grade_point):

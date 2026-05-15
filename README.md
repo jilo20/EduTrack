@@ -8,7 +8,7 @@ A full-stack academic management platform with role-based dashboards for **Admin
 |-----------|-----------------------------------|
 | Frontend  | React 19 + Material UI + Recharts |
 | Backend   | Django 6 + Django REST Framework  |
-| Database  | SQLite                            |
+| Database  | SQLite (dev) / PostgreSQL (prod)  |
 | Auth      | JWT via SimpleJWT                 |
 
 ## Quick Start

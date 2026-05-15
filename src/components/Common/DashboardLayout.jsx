@@ -16,7 +16,6 @@ import HistoryIcon from '@mui/icons-material/History';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
-import Chatbot from './Chatbot';
 
 const drawerWidth = 250;
 
@@ -93,7 +92,6 @@ const DashboardLayout = () => {
 
     const adminMenu = [
         { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-        { text: 'Class Management', icon: <SchoolIcon />, path: '/dashboard/admin/classes' },
         { text: 'User Management', icon: <PeopleIcon />, path: '/dashboard/users' },
         { text: 'Broadcast Center', icon: <CampaignIcon />, path: '/dashboard/broadcast' },
         { text: 'Announcements', icon: <CampaignIcon />, path: '/dashboard/announcements' },
@@ -286,9 +284,6 @@ const DashboardLayout = () => {
                 <Toolbar />
                 <Outlet />
             </Box>
-
-            {/* Chatbot Widget */}
-            <Chatbot user={user} />
 
             {/* Logout Confirmation Dialog */}
             <Dialog open={logoutOpen} onClose={() => setLogoutOpen(false)} maxWidth="xs" fullWidth>
