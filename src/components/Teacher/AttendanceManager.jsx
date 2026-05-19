@@ -183,7 +183,7 @@ const AttendanceManager = () => {
         const name = student.name || '';
         const email = student.email || '';
         const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             email.toLowerCase().includes(searchTerm.toLowerCase());
+            email.toLowerCase().includes(searchTerm.toLowerCase());
         const record = attendanceRecords[student.id] || { status: 'Present' };
         const matchesStatus = statusFilter === 'All' || record.status === statusFilter;
         return matchesSearch && matchesStatus;
@@ -204,7 +204,7 @@ const AttendanceManager = () => {
         }));
         const res = await fetch('/api/mark-attendance', {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
@@ -223,7 +223,7 @@ const AttendanceManager = () => {
         const records = roster.map(s => ({ studentId: s.id, status: 'No Class', remarks: 'No class scheduled' }));
         const res = await fetch('/api/mark-attendance', {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
@@ -247,7 +247,7 @@ const AttendanceManager = () => {
         try {
             const res = await fetch(`/api/class/${selectedClassId}/end-semester`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
@@ -315,108 +315,111 @@ const AttendanceManager = () => {
             </Box>
 
             <Grid container spacing={3}>
-                {/* Lifetime Analytics Card */}
                 <Grid item xs={12}>
-                    <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'primary.light', borderRadius: 4, bgcolor: 'rgba(37, 99, 235, 0.02)' }}>
-                        <Grid container spacing={4} alignItems="center">
-                            <Grid item xs={12} md={3}>
-                                <Stack spacing={0.5}>
-                                    <Typography variant="overline" fontWeight={800} color="primary" sx={{ letterSpacing: '1px' }}>Overall Attendance</Typography>
-                                    <Typography variant="h3" fontWeight={900} color="primary.dark">{analytics.percentage}%</Typography>
-                                    <Typography variant="body2" color="text.secondary" fontWeight={600}>Total Class Rate</Typography>
-                                </Stack>
-                            </Grid>
-                            <Grid item xs={12} md={9}>
-                                <Stack direction="row" spacing={3} sx={{ overflowX: 'auto', pb: 1 }}>
-                                    {[
-                                        { label: 'Total Present', count: analytics.present, color: '#059669' },
-                                        { label: 'Total Absent', count: analytics.absent, color: '#DC2626' },
-                                        { label: 'Total Late', count: analytics.late, color: '#D97706' },
-                                        { label: 'Total Records', count: analytics.total, color: '#64748b' },
-                                    ].map(stat => (
-                                        <Box key={stat.label} sx={{ minWidth: 150, p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: 'white' }}>
-                                            <Typography variant="h5" fontWeight={900} sx={{ color: stat.color }}>{stat.count}</Typography>
-                                            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase' }}>{stat.label}</Typography>
-                                        </Box>
-                                    ))}
-                                </Stack>
-                            </Grid>
+                    <Grid container spacing={3}>
+                        {/* Row 1, Col 1: Lifetime Analytics Card */}
+                        <Grid item xs={12} md={selectedClassId ? 8 : 12} lg={selectedClassId ? 9 : 12}>
+                            <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'primary.light', borderRadius: 4, bgcolor: 'rgba(37, 99, 235, 0.02)', height: '100%' }}>
+                                <Grid container spacing={4} alignItems="center">
+                                    <Grid item xs={12} md={4} lg={3}>
+                                        <Stack spacing={0.5}>
+                                            <Typography variant="overline" fontWeight={800} color="primary" sx={{ letterSpacing: '1px' }}>Overall Attendance</Typography>
+                                            <Typography variant="h3" fontWeight={900} color="primary.dark">{analytics.percentage}%</Typography>
+                                            <Typography variant="body2" color="text.secondary" fontWeight={600}>Total Class Rate</Typography>
+                                        </Stack>
+                                    </Grid>
+                                    <Grid item xs={12} md={8} lg={9}>
+                                        <Stack direction="row" spacing={2} sx={{ overflowX: 'auto', pb: 1 }}>
+                                            {[
+                                                { label: 'Total Present', count: analytics.present, color: '#059669' },
+                                                { label: 'Total Absent', count: analytics.absent, color: '#DC2626' },
+                                                { label: 'Total Late', count: analytics.late, color: '#D97706' },
+                                                { label: 'Total Records', count: analytics.total, color: '#64748b' },
+                                            ].map(stat => (
+                                                <Box key={stat.label} sx={{ minWidth: 120, flexGrow: 1, p: 1.5, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: 'white', textAlign: 'center' }}>
+                                                    <Typography variant="h5" fontWeight={900} sx={{ color: stat.color }}>{stat.count}</Typography>
+                                                    <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.65rem' }}>{stat.label}</Typography>
+                                                </Box>
+                                            ))}
+                                        </Stack>
+                                    </Grid>
+                                </Grid>
+                            </Paper>
                         </Grid>
-                    </Paper>
-                </Grid>
 
-                {/* Controls */}
-                <Grid item xs={12} md={4} lg={3} sx={{ minWidth: 320 }}>
-                    <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4 }}>
-                        <CardContent>
-                            <Typography variant="h6" fontWeight={700} gutterBottom>Class & Date</Typography>
-                            <Stack spacing={2} sx={{ mt: 1 }}>
-                                <FormControl fullWidth>
-                                    <InputLabel>Select Class</InputLabel>
-                                    <Select value={selectedClassId} label="Select Class" onChange={(e) => setSelectedClassId(e.target.value)}>
-                                        <MenuItem value=""><em>Overall (All Classes)</em></MenuItem>
-                                        {classes.map(cls => (
-                                            <MenuItem key={cls.id} value={cls.id}>
-                                                {cls.name} ({cls.section})
-                                                <Chip label={cls.schedule || 'TBA'} size="small" sx={{ ml: 1, fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
-                                            </MenuItem>
+                        {/* Row 1, Col 2: Today's Summary */}
+                        {selectedClassId && (
+                            <Grid item xs={12} md={4} lg={3}>
+                                <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 4, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <Box sx={{ textAlign: 'center', mb: 2 }}>
+                                        <Typography variant="subtitle2" fontWeight={800} color="text.secondary">TODAY'S SUMMARY</Typography>
+                                    </Box>
+                                    <Stack direction="row" spacing={2} justifyContent="center" flexWrap="wrap" useFlexGap>
+                                        {[
+                                            { label: 'Present', count: presentCount, color: '#059669' },
+                                            { label: 'Absent', count: absentCount, color: '#DC2626' },
+                                            { label: 'Late', count: lateCount, color: '#D97706' },
+                                        ].map(stat => (
+                                            <Card key={stat.label} elevation={0} sx={{
+                                                minWidth: 80, flexGrow: 1,
+                                                border: '1px solid', borderColor: 'divider', borderRadius: 4,
+                                                display: 'flex', flexDirection: 'column', justifyContent: 'center'
+                                            }}>
+                                                <CardContent sx={{ textAlign: 'center', p: '12px !important' }}>
+                                                    <Typography variant="h4" fontWeight={900} sx={{ color: stat.color }}>{stat.count}</Typography>
+                                                    <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.65rem' }}>{stat.label}</Typography>
+                                                </CardContent>
+                                            </Card>
                                         ))}
-                                    </Select>
-                                </FormControl>
-                                <TextField fullWidth type="date" label="Date" value={selectedDate}
-                                    onChange={(e) => setSelectedDate(e.target.value)} InputLabelProps={{ shrink: true }} />
-                                {selectedClassId && classSchedule !== 'TBA' && (
-                                    <Chip 
-                                        label={`Schedule: ${classSchedule}`} 
-                                        size="small" 
-                                        sx={{ fontWeight: 800, bgcolor: '#eff6ff', color: '#2563eb' }} 
-                                    />
-                                )}
-                            </Stack>
-                        </CardContent>
-                    </Card>
-                    {/* End Semester Button */}
-                    {selectedClassId && (
-                        <Button
-                            variant="outlined"
-                            color="error"
-                            fullWidth
-                            startIcon={<StopCircleIcon />}
-                            onClick={() => { setConfirmText(''); setEndClassOpen(true); }}
-                            sx={{ fontWeight: 700, borderRadius: 3, mt: 2 }}
-                        >
-                            End Semester
-                        </Button>
-                    )}
-                </Grid>
+                                    </Stack>
+                                </Paper>
+                            </Grid>
+                        )}
 
-                {/* Today's Summary */}
-                {selectedClassId && (
-                    <Grid item xs={12} md={8} lg={9}>
-                        <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" sx={{ height: '100%' }}>
-                            <Box sx={{ mr: 2, textAlign: 'right' }}>
-                                <Typography variant="subtitle2" fontWeight={800} color="text.secondary">TODAY'S</Typography>
-                                <Typography variant="h6" fontWeight={900}>SUMMARY</Typography>
-                            </Box>
-                            {[
-                                { label: 'Present', count: presentCount, color: '#059669' },
-                                { label: 'Absent', count: absentCount, color: '#DC2626' },
-                                { label: 'Late', count: lateCount, color: '#D97706' },
-                            ].map(stat => (
-                                <Card key={stat.label} elevation={0} sx={{
-                                    width: 120, height: 120,
-                                    border: '1px solid', borderColor: 'divider', borderRadius: 4,
-                                    display: 'flex', flexDirection: 'column', justifyContent: 'center'
-                                }}>
-                                    <CardContent sx={{ textAlign: 'center', p: '16px !important' }}>
-                                        <Typography variant="h4" fontWeight={900} sx={{ color: stat.color }}>{stat.count}</Typography>
-                                        <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase' }}>{stat.label}</Typography>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </Stack>
+                        {/* Row 2: Controls */}
+                        <Grid item xs={12}>
+                            <Card elevation={0} sx={{ mx: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 4, width: 'fit-content' }}>
+                                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                                    <Typography variant="subtitle2" fontWeight={700} gutterBottom color="text.secondary" sx={{ textAlign: 'center' }}>Class & Date</Typography>
+                                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" justifyContent="center">
+                                        <FormControl sx={{ minWidth: 250 }}>
+                                            <InputLabel>Select Class</InputLabel>
+                                            <Select value={selectedClassId} label="Select Class" onChange={(e) => setSelectedClassId(e.target.value)}>
+                                                <MenuItem value=""><em>Overall (All Classes)</em></MenuItem>
+                                                {classes.map(cls => (
+                                                    <MenuItem key={cls.id} value={cls.id}>
+                                                        {cls.name} ({cls.section})
+                                                        <Chip label={cls.schedule || 'TBA'} size="small" sx={{ ml: 1, fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                        </FormControl>
+                                        <TextField sx={{ width: 180 }} type="date" label="Date" value={selectedDate}
+                                            onChange={(e) => setSelectedDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+                                        {selectedClassId && classSchedule !== 'TBA' && (
+                                            <Chip 
+                                                label={`Schedule: ${classSchedule}`} 
+                                                size="small" 
+                                                sx={{ fontWeight: 800, bgcolor: '#eff6ff', color: '#2563eb' }} 
+                                            />
+                                        )}
+                                        {selectedClassId && (
+                                            <Button
+                                                variant="outlined"
+                                                color="error"
+                                                startIcon={<StopCircleIcon />}
+                                                onClick={() => { setConfirmText(''); setEndClassOpen(true); }}
+                                                sx={{ fontWeight: 700, borderRadius: 3, height: 56, px: 3 }}
+                                            >
+                                                End Semester
+                                            </Button>
+                                        )}
+                                    </Stack>
+                                </CardContent>
+                            </Card>
+                        </Grid>
                     </Grid>
-                )}
+                </Grid>
 
                 {/* Attendance Table or No-Class Notice */}
                 {selectedClassId && (
@@ -432,10 +435,10 @@ const AttendanceManager = () => {
                                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3 }}>
                                     This class is scheduled for <strong>{classSchedule}</strong> only.
                                 </Typography>
-                                <Button 
-                                    variant="contained" 
-                                    color="warning" 
-                                    startIcon={<EventBusyIcon />} 
+                                <Button
+                                    variant="contained"
+                                    color="warning"
+                                    startIcon={<EventBusyIcon />}
                                     onClick={handleMarkNoClass}
                                     sx={{ fontWeight: 800, borderRadius: 2 }}
                                 >
@@ -453,16 +456,16 @@ const AttendanceManager = () => {
                                         </Typography>
                                     </Stack>
                                     <Stack direction="row" spacing={1.5}>
-                                        <Button 
+                                        <Button
                                             variant={roster.length > 0 && roster.every(s => (attendanceRecords[s.id] || {}).status === 'No Class') ? "contained" : "outlined"}
-                                            color="warning" 
-                                            size="small" 
-                                            startIcon={<EventBusyIcon />} 
+                                            color="warning"
+                                            size="small"
+                                            startIcon={<EventBusyIcon />}
                                             onClick={async () => {
                                                 const isReset = roster.length > 0 && roster.every(s => (attendanceRecords[s.id] || {}).status === 'No Class');
                                                 const newStatus = isReset ? 'Present' : 'No Class';
                                                 const newRemarks = isReset ? '' : 'No class scheduled';
-                                                
+
                                                 // Update local state first for instant feedback
                                                 const updated = {};
                                                 roster.forEach(s => updated[s.id] = { status: newStatus, remarks: newRemarks });
@@ -478,14 +481,14 @@ const AttendanceManager = () => {
                                                 });
                                                 setSnackbar({ open: true, message: isReset ? 'Attendance reset to default.' : 'Marked all as NO CLASS TODAY.', severity: 'info' });
                                                 fetchAnalytics();
-                                            }} 
+                                            }}
                                             disabled={isCompleted}
                                             sx={{ fontWeight: 700, borderRadius: 2 }}
                                         >
                                             {roster.length > 0 && roster.every(s => (attendanceRecords[s.id] || {}).status === 'No Class') ? "Reset Attendance" : "No Class"}
                                         </Button>
-                                        <Button variant="contained" color="success" startIcon={<SaveIcon />} 
-                                            onClick={handleSubmit} 
+                                        <Button variant="contained" color="success" startIcon={<SaveIcon />}
+                                            onClick={handleSubmit}
                                             disabled={isCompleted || (roster.length > 0 && roster.every(s => (attendanceRecords[s.id] || {}).status === 'No Class'))}
                                             sx={{ fontWeight: 700, borderRadius: 2 }}>
                                             Save Attendance
@@ -528,28 +531,28 @@ const AttendanceManager = () => {
                                         </TableHead>
                                         <TableBody sx={{ position: 'relative' }}>
                                             {roster.length > 0 && roster.every(s => (attendanceRecords[s.id] || {}).status === 'No Class') && (
-                                               <Box sx={{
-                                                   position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                                                   zIndex: 10, display: 'flex', flexDirection: 'column',
-                                                   justifyContent: 'center', alignItems: 'center',
-                                                   bgcolor: 'rgba(255, 255, 255, 0.4)',
-                                                   pointerEvents: 'none', // Allow clicking through to buttons
-                                                   backdropFilter: 'blur(1px)'
-                                               }}>
+                                                <Box sx={{
+                                                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                                                    zIndex: 10, display: 'flex', flexDirection: 'column',
+                                                    justifyContent: 'center', alignItems: 'center',
+                                                    bgcolor: 'rgba(255, 255, 255, 0.4)',
+                                                    pointerEvents: 'none', // Allow clicking through to buttons
+                                                    backdropFilter: 'blur(1px)'
+                                                }}>
                                                     <EventBusyIcon sx={{ fontSize: 80, color: 'rgba(217, 119, 6, 0.15)', mb: 1 }} />
                                                     <Typography variant="h3" fontWeight={900} sx={{ color: 'rgba(217, 119, 6, 0.15)', letterSpacing: 8 }}>
                                                         NO CLASS TODAY
                                                     </Typography>
-                                               </Box>
+                                                </Box>
                                             )}
                                             {filteredRoster.length > 0 ? (
                                                 filteredRoster.map((student) => {
                                                     const record = attendanceRecords[student.id] || { status: 'Present', remarks: '' };
                                                     return (
-                                                        <TableRow 
-                                                            key={student.id} 
-                                                            hover 
-                                                            sx={{ 
+                                                        <TableRow
+                                                            key={student.id}
+                                                            hover
+                                                            sx={{
                                                                 opacity: record.status === 'No Class' ? 0.6 : 1,
                                                                 bgcolor: record.status === 'No Class' ? '#f1f5f9' : 'transparent',
                                                                 transition: 'all 0.2s',
@@ -695,7 +698,7 @@ const AttendanceManager = () => {
                                     return (
                                         <React.Fragment key={s.id || idx}>
                                             <ListItem button onClick={() => handleToggleExpand(s)}
-                                                sx={{ 
+                                                sx={{
                                                     borderBottom: '1px solid', borderColor: 'divider', py: 1.5,
                                                     bgcolor: isExpanded ? 'rgba(37, 99, 235, 0.04)' : 'transparent',
                                                     '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.08)' },
@@ -804,7 +807,7 @@ const AttendanceManager = () => {
                                                                                             {new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                                                                         </TableCell>
                                                                                         <TableCell sx={{ py: 1 }}>
-                                                                                            <Chip label={r.status} size="small" sx={{ 
+                                                                                            <Chip label={r.status} size="small" sx={{
                                                                                                 fontWeight: 800, fontSize: '0.6rem', height: 18,
                                                                                                 bgcolor: r.status === 'Present' ? '#dcfce7' : r.status === 'Absent' ? '#fee2e2' : '#fef3c7',
                                                                                                 color: r.status === 'Present' ? '#16a34a' : r.status === 'Absent' ? '#dc2626' : '#d97706'

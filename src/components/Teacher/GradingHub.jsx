@@ -195,37 +195,41 @@ const GradingHub = () => {
             </Box>
 
             <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                    <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4 }}>
-                        <CardContent>
-                            <Typography variant="h6" fontWeight={700} gutterBottom>Select a Class</Typography>
-                            <FormControl fullWidth sx={{ mt: 1 }}>
-                                <InputLabel>Available Sections</InputLabel>
-                                <Select value={selectedClassId} label="Available Sections" onChange={(e) => setSelectedClassId(e.target.value)}>
-                                    {classes.map(cls => (<MenuItem key={cls.id} value={cls.id}>{cls.name} ({cls.section})</MenuItem>))}
-                                </Select>
-                            </FormControl>
-                        </CardContent>
-                    </Card>
-                </Grid>
+                <Grid item xs={12}>
+                    <Grid container spacing={3} alignItems="stretch">
+                        <Grid item xs={12} md={6}>
+                            <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 4, height: '100%' }}>
+                                <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                    <Typography variant="h6" fontWeight={700} gutterBottom>Select a Class</Typography>
+                                    <FormControl fullWidth sx={{ mt: 1 }}>
+                                        <InputLabel>Available Sections</InputLabel>
+                                        <Select value={selectedClassId} label="Available Sections" onChange={(e) => setSelectedClassId(e.target.value)}>
+                                            {classes.map(cls => (<MenuItem key={cls.id} value={cls.id}>{cls.name} ({cls.section})</MenuItem>))}
+                                        </Select>
+                                    </FormControl>
+                                </CardContent>
+                            </Card>
+                        </Grid>
 
-                {selectedClassId && (
-                    <Grid item xs={12} md={6}>
-                        <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-                            <FormControl sx={{ minWidth: 250 }}>
-                                <InputLabel>Assessment</InputLabel>
-                                <Select value={selectedAssessmentId} label="Assessment" onChange={(e) => setSelectedAssessmentId(e.target.value)}>
-                                    {assessments.map(a => (<MenuItem key={a.id} value={a.id}>{a.title} ({a.type})</MenuItem>))}
-                                    {assessments.length === 0 && <MenuItem disabled>No assessments created</MenuItem>}
-                                </Select>
-                            </FormControl>
-                            <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => setOpen(true)}
-                                sx={{ bgcolor: '#2563EB', fontWeight: 700, borderRadius: 2 }}>
-                                New Assessment
-                            </Button>
-                        </Paper>
+                        {selectedClassId && (
+                            <Grid item xs={12} md={6}>
+                                <Paper elevation={0} sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, height: '100%', boxSizing: 'border-box' }}>
+                                    <FormControl fullWidth>
+                                        <InputLabel>Assessment</InputLabel>
+                                        <Select value={selectedAssessmentId} label="Assessment" onChange={(e) => setSelectedAssessmentId(e.target.value)}>
+                                            {assessments.map(a => (<MenuItem key={a.id} value={a.id}>{a.title} ({a.type})</MenuItem>))}
+                                            {assessments.length === 0 && <MenuItem disabled>No assessments created</MenuItem>}
+                                        </Select>
+                                    </FormControl>
+                                    <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => setOpen(true)}
+                                        sx={{ bgcolor: '#2563EB', fontWeight: 700, borderRadius: 2, minWidth: '150px' }}>
+                                        New Assessment
+                                    </Button>
+                                </Paper>
+                            </Grid>
+                        )}
                     </Grid>
-                )}
+                </Grid>
 
                 {activeAssessment && (
                     <Grid item xs={12}>
@@ -252,7 +256,6 @@ const GradingHub = () => {
                                             <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }} align="center">Raw Score</TableCell>
                                             <TableCell sx={{ fontWeight: 700 }} align="center">%</TableCell>
-                                            <TableCell sx={{ fontWeight: 700 }} align="center">Equiv.</TableCell>
                                             <TableCell align="right"></TableCell>
                                         </TableRow>
                                     </TableHead>
@@ -261,7 +264,7 @@ const GradingHub = () => {
                                             const score = studentScores[student.id];
                                             const isGraded = dbScores.some(s => s.assessment_id.toString() === selectedAssessmentId.toString() && s.student_id === student.id);
                                             const isEditing = editMode[student.id];
-                                            const isDisabled = isGraded && !isEditing;
+                                            const isDisabled = false;
                                             const percentage = score && activeAssessment ? Math.round((parseFloat(score) / activeAssessment.perfect_score) * 100) : null;
 
                                             return (
@@ -277,13 +280,6 @@ const GradingHub = () => {
                                                     <TableCell align="center">
                                                         {percentage !== null && (
                                                             <Chip label={`${percentage}%`} size="small"
-                                                                variant="outlined"
-                                                                sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell align="center">
-                                                        {percentage !== null && (
-                                                            <Chip label={percentageToGradePoint(percentage, currentPassingGrade).toFixed(2)} size="small"
                                                                 color={percentage >= 85 ? 'success' : percentage >= currentPassingGrade ? 'primary' : 'error'}
                                                                 sx={{ fontWeight: 800, fontSize: '0.7rem' }} />
                                                         )}

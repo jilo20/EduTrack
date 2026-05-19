@@ -150,8 +150,11 @@ class StudentAnalyticsView(APIView):
         trend_data = []
         for s in scores:
             assessment = Assessment.objects.filter(id=s.assessment_id).first()
+            section_name = assessment.section.code_name if assessment and assessment.section else 'Unknown Class'
             trend_data.append({
-                'id': s.id, 'title': assessment.title if assessment else 'Unknown',
+                'id': s.id, 
+                'title': assessment.title if assessment else 'Unknown',
+                'className': section_name,
                 'score': round((s.score / (assessment.perfect_score if assessment else 1)) * 100),
                 'date': assessment.id if assessment else 0,
             })

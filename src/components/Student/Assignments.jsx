@@ -9,11 +9,12 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import WarningIcon from '@mui/icons-material/Warning';
 
-const Assignments = () => {
+const Assessments = () => {
     const [user, setUser] = useState(null);
     const [filter, setFilter] = useState('All Status');
     const [typeFilter, setTypeFilter] = useState('All Types');
-    const [assignments, setAssignments] = useState([]);
+    const [classFilter, setClassFilter] = useState('All Classes');
+    const [assessments, setAssessments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -31,7 +32,7 @@ const Assignments = () => {
 
     useEffect(() => {
         if (!user?.id) return;
-        const fetchAssignments = async () => {
+        const fetchAssessments = async () => {
             const token = localStorage.getItem('token');
             try {
                 const res = await fetch(`/api/student/${user.id}/performance`, {
@@ -50,24 +51,29 @@ const Assignments = () => {
                             perfectScore: p.perfectScore,
                             percentage: p.achievedScore !== null ? Math.round((p.achievedScore / p.perfectScore) * 100) : null
                         }));
-                        setAssignments(mapped);
+                        setAssessments(mapped);
                     }
                 }
-            } catch (err) { console.error('Assignments fetch failed', err); }
+            } catch (err) { console.error('Assessments fetch failed', err); }
             finally { setLoading(false); }
         };
-        fetchAssignments();
+        fetchAssessments();
     }, [user?.id]);
+    
+    const uniqueClasses = useMemo(() => {
+        const classes = [...new Set(assessments.map(a => a.subject))];
+        return ['All Classes', ...classes];
+    }, [assessments]);
 
 
-    const filteredAssignments = useMemo(() => {
-        return assignments.filter(a => {
+    const filteredAssessments = useMemo(() => {
+        return assessments.filter(a => {
             const matchesStatus = filter === 'All Status' || a.status === filter;
             const matchesType = typeFilter === 'All Types' || a.type === typeFilter;
             const matchesSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase());
             return matchesStatus && matchesType && matchesSearch;
         });
-    }, [assignments, filter, typeFilter, searchQuery]);
+    }, [assessments, filter, typeFilter, classFilter, searchQuery]);
 
     if (loading) {
         return (
@@ -85,14 +91,14 @@ const Assignments = () => {
         );
     }
 
-    const gradedCount = assignments.filter(a => a.status === 'Graded').length;
-    const pendingCount = assignments.filter(a => a.status === 'Pending').length;
+    const gradedCount = assessments.filter(a => a.status === 'Graded').length;
+    const pendingCount = assessments.filter(a => a.status === 'Pending').length;
 
     return (
         <Box sx={{ p: 4, bgcolor: '#f8fafc', minHeight: '100vh' }}>
             <Box sx={{ mb: 4 }}>
                 <Typography variant="h4" fontWeight="800" color="primary" gutterBottom sx={{ letterSpacing: '-0.5px' }}>
-                    Assessment Tracker 📝
+                    Assessments 📝
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
                     Track your exams, quizzes, and projects across all courses.
@@ -119,7 +125,7 @@ const Assignments = () => {
                             <Stack direction="row" spacing={2} alignItems="center">
                                 <AssignmentIcon />
                                 <Box>
-                                    <Typography variant="h5" fontWeight="800">{assignments.length} Total</Typography>
+                                    <Typography variant="h5" fontWeight="800">{assessments.length} Total</Typography>
                                     <Typography variant="caption" fontWeight="700">ALL ASSESSMENTS</Typography>
                                 </Box>
                             </Stack>
@@ -151,13 +157,28 @@ const Assignments = () => {
                                 sx={{ fontWeight: 700, borderRadius: 2 }} />
                         ))}
                     </Stack>
-                    <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
-                    <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
-                        {['All Types', 'Assignment', 'Quiz', 'Exam', 'Project'].map(item => (
-                            <Chip key={item} label={item} onClick={() => setTypeFilter(item)}
-                                color={typeFilter === item ? 'secondary' : 'default'} variant={typeFilter === item ? 'filled' : 'outlined'}
-                                sx={{ fontWeight: 700, borderRadius: 2 }} />
-                        ))}
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ minWidth: 60 }}>STATUS:</Typography>
+                            <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+                                {['All Status', 'Pending', 'Graded'].map(item => (
+                                    <Chip key={item} label={item} onClick={() => setFilter(item)}
+                                        color={filter === item ? 'primary' : 'default'} variant={filter === item ? 'filled' : 'outlined'}
+                                        sx={{ fontWeight: 700, borderRadius: 2 }} />
+                                ))}
+                            </Stack>
+                        </Stack>
+                        <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
+                        <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ minWidth: 60 }}>TYPE:</Typography>
+                            <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
+                                {['All Types', 'Written Works', 'Performance Tasks', 'Major Exams', 'Projects', 'Other'].map(item => (
+                                    <Chip key={item} label={item} onClick={() => setTypeFilter(item)}
+                                        color={typeFilter === item ? 'secondary' : 'default'} variant={typeFilter === item ? 'filled' : 'outlined'}
+                                        sx={{ fontWeight: 700, borderRadius: 2 }} />
+                                ))}
+                            </Stack>
+                        </Stack>
                     </Stack>
                 </Stack>
                 <TextField size="small" placeholder="Search assessments..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -166,9 +187,9 @@ const Assignments = () => {
             </Stack>
 
             <Box>
-                    {filteredAssignments.length > 0 ? (
+                    {filteredAssessments.length > 0 ? (
                         <List sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 0 }}>
-                            {filteredAssignments.map(task => (
+                            {filteredAssessments.map(task => (
                                 <ListItem key={task.id} sx={{
                                     bgcolor: 'white', borderRadius: 3, p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                     border: '1px solid', borderColor: 'divider', transition: '0.2s',
@@ -179,8 +200,8 @@ const Assignments = () => {
                                             <Typography variant="h6" fontWeight="700">{task.title}</Typography>
                                             <Chip label={task.type} size="small" sx={{
                                                 fontWeight: 800, fontSize: '0.65rem',
-                                                bgcolor: task.type === 'Quiz' ? '#eff6ff' : task.type === 'Project' ? '#f3e8ff' : '#ecfdf5',
-                                                color: task.type === 'Quiz' ? '#2563EB' : task.type === 'Project' ? '#7C3AED' : '#059669'
+                                                bgcolor: task.type === 'Major Exams' ? '#eff6ff' : task.type === 'Performance Tasks' ? '#fef3c7' : task.type === 'Projects' ? '#f3e8ff' : '#ecfdf5',
+                                                color: task.type === 'Major Exams' ? '#2563EB' : task.type === 'Performance Tasks' ? '#d97706' : task.type === 'Projects' ? '#7C3AED' : '#059669'
                                             }} />
                                         </Stack>
                                         <Typography variant="body2" color="text.secondary" mb={1}>{task.subject}</Typography>
@@ -208,4 +229,4 @@ const Assignments = () => {
     );
 };
 
-export default Assignments;
+export default Assessments;

@@ -1,22 +1,22 @@
 """
 GWA (General Weighted Average) Calculation Engine — Django Port
 
-Default Category Weights:
+Default Assessment Categories (Weights):
   Quiz:         30%
   Project:      30%
   Module Exam:  40%
 
-Teachers can customize weights per section via section.settings['weights']
+Teachers can customize weights per Class via class.settings['weights']
 
-Formula per section:
+Formula per Class:
   category_avg = Σ(score / perfect_score) / count_in_category
-  section_grade = Σ(category_avg × category_weight)
+  class_grade = Σ(category_avg × category_weight)
 
 Overall GWA:
-  GWA = Σ(section_grade) / number_of_sections
+  GWA = Σ(class_grade) / number_of_classes
 """
 
-from api.models import Section, Assessment, Score, Enrollment
+from api.models import Section, Assessment, Score, Enrollment, Attendance
 
 DEFAULT_WEIGHTS = {
     'Quiz': 0.30,
@@ -93,15 +93,26 @@ def compute_section_grade(student_id, section_id):
             passing_grade
         )
 
+    # Attendance
+    attendance_qs = Attendance.objects.filter(section_id=section_id, student_id=student_id).exclude(status='No Class')
+    attendance_records = [{'date': str(r.date), 'status': r.status} for r in attendance_qs]
+    total_days = attendance_qs.count()
+    present = attendance_qs.filter(status='Present').count()
+    late = attendance_qs.filter(status='Late').count()
+    att_rate = round(((present + late * 0.5) / total_days) * 100) if total_days > 0 else 0
+
     return {
         'sectionId': section_id,
         'sectionName': section.course_program,
         'sectionCode': section.code_name,
+        'sectionStatus': section.status,
         'sectionGrade': section_grade,
         'equivalentGrade': equivalent_grade,
         'gradeDescription': get_grade_description(equivalent_grade),
         'passingGrade': passing_grade,
         'categoryBreakdown': category_breakdown,
+        'attendanceRecords': attendance_records,
+        'attendanceRate': att_rate,
         'weights': weights,
         'totalAssessments': assessments.count(),
         'gradedAssessments': sum(c['count'] for c in categories.values()),

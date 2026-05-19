@@ -132,6 +132,12 @@ const StudentDashboard = () => {
                                 <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} tickFormatter={(value) => `${value}%`} />
                                 <RechartsTooltip
                                     formatter={(value) => [`${value}%`, 'Score']}
+                                    labelFormatter={(label, payload) => {
+                                        if (payload && payload.length > 0 && payload[0].payload) {
+                                            return `${payload[0].payload.className} — ${label}`;
+                                        }
+                                        return label;
+                                    }}
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                                 />
                                 <Line
@@ -179,7 +185,7 @@ const StudentDashboard = () => {
                                         <Typography variant="body2" fontWeight={800} noWrap sx={{ textOverflow: 'ellipsis', overflow: 'hidden' }}>
                                             {grade.title}
                                         </Typography>
-                                        <Typography variant="caption" color="text.secondary">Recorded recently</Typography>
+                                        <Typography variant="caption" color="text.secondary">{grade.className || 'Unknown Class'} • Recorded recently</Typography>
                                     </Box>
                                     <Typography variant="h6" fontWeight={900} color={grade.score >= 75 ? 'primary' : 'error'} sx={{ flexShrink: 0 }}>
                                         {grade.score}%
@@ -209,7 +215,7 @@ const StudentDashboard = () => {
                             <Box key={idx} sx={{ p: 2.5, bgcolor: '#f8fafc', borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Box>
                                     <Typography variant="subtitle2" fontWeight={800}>{grade.title}</Typography>
-                                    <Typography variant="caption" color="text.secondary">Assessment Record • ID #{grade.id}</Typography>
+                                    <Typography variant="caption" color="text.secondary">{grade.className || 'Unknown Class'} • Assessment Record • ID #{grade.id}</Typography>
                                 </Box>
                                 <Chip label={`${grade.score}%`} color={grade.score >= 75 ? "primary" : "error"} sx={{ fontWeight: 900, borderRadius: 2 }} />
                             </Box>
